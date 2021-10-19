@@ -1,8 +1,10 @@
 // Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
+using System;
 using osu.Game.Online.Multiplayer;
 using osu.Game.Online.Rooms;
+using osu.Server.Spectator.Hubs.Queues;
 
 namespace osu.Server.Spectator.Hubs
 {
@@ -27,6 +29,8 @@ namespace osu.Server.Spectator.Hubs
             }
         }
 
+        public IMultiplayerQueue QueueImplementation { get; set; }
+
         public ServerMultiplayerRoom(long roomId, IMultiplayerServerMatchCallbacks hubCallbacks)
             : base(roomId)
         {
@@ -34,9 +38,12 @@ namespace osu.Server.Spectator.Hubs
 
             // just to ensure non-null.
             matchTypeImplementation = createTypeImplementation(MatchType.HeadToHead);
+            QueueImplementation = createQueueImplementation(QueueingModes.Host);
         }
 
         public void ChangeMatchType(MatchType type) => MatchTypeImplementation = createTypeImplementation(type);
+
+        public void ChangeQueue(QueueingModes mode) => QueueImplementation = createQueueImplementation(mode);
 
         public void AddUser(MultiplayerRoomUser user)
         {
@@ -59,6 +66,18 @@ namespace osu.Server.Spectator.Hubs
 
                 default:
                     return new HeadToHead(this, hubCallbacks);
+            }
+        }
+
+        private IMultiplayerQueue createQueueImplementation(QueueingModes mode)
+        {
+            switch (mode)
+            {
+                case QueueingModes.Host:
+                    return new MultiplayerHostPickQueue();
+
+                case QueueingModes.Karaoke:
+                    return new MultiplayerKaraokeQueue();
             }
         }
     }
