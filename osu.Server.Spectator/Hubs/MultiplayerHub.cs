@@ -11,6 +11,7 @@ using Newtonsoft.Json;
 using osu.Game.Online.API;
 using osu.Game.Online.Multiplayer;
 using osu.Game.Online.Multiplayer.MatchTypes.TeamVersus;
+using osu.Game.Online.Multiplayer.Queueing;
 using osu.Game.Online.Rooms;
 using osu.Game.Rulesets;
 using osu.Game.Rulesets.Mods;
@@ -409,6 +410,13 @@ namespace osu.Server.Spectator.Hubs
                 {
                     case ChangeTeamRequest:
                         room.MatchTypeImplementation.HandleUserRequest(user, request);
+                        break;
+
+                    case AddPlaylistItemRequest addPlaylistItemRequest:
+                        if (!room.QueueImplementation.CanAdd(user.UserID, room))
+                            throw new InvalidOperationException("User can not add beatmaps to the room");
+
+                        room.QueueImplementation.HandleAddRequest(addPlaylistItemRequest);
                         break;
                 }
             }

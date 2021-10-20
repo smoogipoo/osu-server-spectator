@@ -2,7 +2,7 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using osu.Game.Online.Multiplayer;
-using osu.Game.Online.Rooms;
+using osu.Game.Online.Multiplayer.Queueing;
 
 namespace osu.Server.Spectator.Hubs.Queues
 {
@@ -13,7 +13,7 @@ namespace osu.Server.Spectator.Hubs.Queues
             throw new System.NotImplementedException();
         }
 
-        public void Add(PlaylistItem item)
+        public void HandleAddRequest(AddPlaylistItemRequest request)
         {
             throw new System.NotImplementedException();
         }

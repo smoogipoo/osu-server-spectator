@@ -2,6 +2,7 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using osu.Game.Online.Multiplayer;
+using osu.Game.Online.Multiplayer.Queueing;
 using osu.Game.Online.Rooms;
 
 namespace osu.Server.Spectator.Hubs.Queues
@@ -12,7 +13,7 @@ namespace osu.Server.Spectator.Hubs.Queues
 
         public bool CanAdd(int userId, MultiplayerRoom room) => userId == room.Host?.UserID;
 
-        public void Add(PlaylistItem item)
+        public void HandleAddRequest(AddPlaylistItemRequest request)
         {
             throw new System.NotImplementedException();
         }
