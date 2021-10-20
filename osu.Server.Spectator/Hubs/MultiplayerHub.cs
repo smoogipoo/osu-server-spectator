@@ -10,6 +10,7 @@ using Microsoft.Extensions.Caching.Distributed;
 using Newtonsoft.Json;
 using osu.Game.Online.API;
 using osu.Game.Online.Multiplayer;
+using osu.Game.Online.Multiplayer.MatchTypes.TeamVersus;
 using osu.Game.Online.Rooms;
 using osu.Game.Rulesets;
 using osu.Game.Rulesets.Mods;
@@ -404,7 +405,12 @@ namespace osu.Server.Spectator.Hubs
                 if (user == null)
                     throw new InvalidOperationException("Local user was not found in the expected room");
 
-                room.MatchTypeImplementation.HandleUserRequest(user, request);
+                switch (request)
+                {
+                    case ChangeTeamRequest:
+                        room.MatchTypeImplementation.HandleUserRequest(user, request);
+                        break;
+                }
             }
         }
 

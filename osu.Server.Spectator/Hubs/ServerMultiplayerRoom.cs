@@ -2,6 +2,7 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using osu.Game.Online.Multiplayer;
+using osu.Game.Online.Multiplayer.Queueing;
 using osu.Game.Online.Rooms;
 using osu.Server.Spectator.Hubs.Queues;
 

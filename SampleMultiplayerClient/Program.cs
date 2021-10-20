@@ -13,6 +13,7 @@ using osu.Framework.Utils;
 using osu.Game.Online;
 using osu.Game.Online.API;
 using osu.Game.Online.Multiplayer;
+using osu.Game.Online.Multiplayer.Queueing;
 using osu.Game.Online.Rooms;
 
 namespace SampleMultiplayerClient
