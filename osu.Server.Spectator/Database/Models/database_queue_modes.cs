@@ -8,7 +8,7 @@ namespace osu.Server.Spectator.Database.Models
 {
     [Serializable]
     // ReSharper disable once InconsistentNaming
-    public enum database_queue_mode
+    public enum database_queue_modes
     {
         host_pick,
         karaoke
@@ -16,16 +16,29 @@ namespace osu.Server.Spectator.Database.Models
 
     public static class DatabaseQueueModeExtensions
     {
-        public static QueueModes ToQueueingMode(this database_queue_mode mode)
+        public static QueueModes ToQueueMode(this database_queue_modes mode)
         {
             switch (mode)
             {
                 default:
-                case database_queue_mode.host_pick:
+                case database_queue_modes.host_pick:
                     return QueueModes.HostPick;
 
-                case database_queue_mode.karaoke:
+                case database_queue_modes.karaoke:
                     return QueueModes.Karaoke;
+            }
+        }
+
+        public static database_queue_modes ToDatabaseQueueMode(this QueueModes mode)
+        {
+            switch (mode)
+            {
+                default:
+                case QueueModes.HostPick:
+                    return database_queue_modes.host_pick;
+
+                case QueueModes.Karaoke:
+                    return database_queue_modes.karaoke;
             }
         }
     }

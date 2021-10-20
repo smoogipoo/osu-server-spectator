@@ -41,7 +41,7 @@ namespace SampleMultiplayerClient
                 }
 
                 Console.WriteLine("Usage: <client_id> <command> [params]");
-                Console.WriteLine("Valid commands [ JoinRoom LeaveRoom TransferHost ChangeSettings ChangeState ChangeBeatmapAvailability ChangeMods StartMatch ]");
+                Console.WriteLine("Valid commands [ JoinRoom LeaveRoom TransferHost ChangeMatchType ChangeQueue ChangeSettings ChangeState ChangeBeatmapAvailability ChangeMods StartMatch ]");
 
                 Console.Write(">");
 
@@ -80,6 +80,12 @@ namespace SampleMultiplayerClient
                         case "changematchtype":
                             settings ??= new MultiplayerRoomSettings();
                             settings.MatchType = MatchType.TeamVersus;
+                            await targetClient.ChangeSettings(settings);
+                            break;
+
+                        case "changequeue":
+                            settings ??= new MultiplayerRoomSettings();
+                            settings.QueueMode = (QueueModes)int.Parse(args[0]);
                             await targetClient.ChangeSettings(settings);
                             break;
 

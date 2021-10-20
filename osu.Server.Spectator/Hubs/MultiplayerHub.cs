@@ -204,6 +204,7 @@ namespace osu.Server.Spectator.Hubs
                 };
 
                 room.ChangeMatchType(room.Settings.MatchType);
+                room.ChangeQueue(room.Settings.QueueMode);
 
                 return room;
             }
@@ -487,6 +488,12 @@ namespace osu.Server.Spectator.Hubs
                 {
                     room.ChangeMatchType(settings.MatchType);
                     Log($"Switching room ruleset to {room.MatchTypeImplementation}");
+                }
+
+                if (previousSettings.QueueMode != settings.QueueMode)
+                {
+                    room.ChangeQueue(settings.QueueMode);
+                    Log($"Switching queueing mode to {room.QueueImplementation}");
                 }
 
                 await ensureAllUsersValidMods(room);
