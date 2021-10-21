@@ -8,12 +8,12 @@ namespace osu.Server.Spectator.Hubs.Queues
 {
     public class MultiplayerKaraokeQueue : IMultiplayerQueue
     {
-        public bool CanAdd(int userId, MultiplayerRoom room)
+        public bool CanEnqueue(int userId, MultiplayerRoom room)
         {
             throw new System.NotImplementedException();
         }
 
-        public void HandleAddRequest(AddPlaylistItemRequest request)
+        public void Enqueue(EnqueuePlaylistItemRequest request)
         {
             throw new System.NotImplementedException();
         }

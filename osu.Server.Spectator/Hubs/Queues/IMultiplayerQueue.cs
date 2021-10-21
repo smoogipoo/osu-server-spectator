@@ -8,9 +8,9 @@ namespace osu.Server.Spectator.Hubs.Queues
 {
     public interface IMultiplayerQueue
     {
-        bool CanAdd(int userId, MultiplayerRoom room);
+        bool CanEnqueue(int userId, MultiplayerRoom room);
 
-        void HandleAddRequest(AddPlaylistItemRequest request);
+        void Enqueue(EnqueuePlaylistItemRequest request);
 
         int SelectNextItem();
     }

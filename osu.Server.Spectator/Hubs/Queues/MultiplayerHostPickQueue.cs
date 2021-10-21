@@ -11,9 +11,9 @@ namespace osu.Server.Spectator.Hubs.Queues
     {
         private PlaylistItem item;
 
-        public bool CanAdd(int userId, MultiplayerRoom room) => userId == room.Host?.UserID;
+        public bool CanEnqueue(int userId, MultiplayerRoom room) => userId == room.Host?.UserID;
 
-        public void HandleAddRequest(AddPlaylistItemRequest request)
+        public void Enqueue(EnqueuePlaylistItemRequest request)
         {
             throw new System.NotImplementedException();
         }
