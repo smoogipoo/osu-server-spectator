@@ -56,13 +56,15 @@ namespace osu.Server.Spectator.Database
             });
         }
 
-        public Task<multiplayer_playlist_item> GetCurrentPlaylistItemAsync(long roomId)
+        public async Task<multiplayer_playlist_item> GetCurrentPlaylistItemAsync(long roomId)
         {
             // Todo: Add ordering.
-            return connection.QueryFirstAsync<multiplayer_playlist_item>("SELECT * FROM multiplayer_playlist_items WHERE room_id = @RoomId AND expired = 0", new
-            {
-                RoomID = roomId
-            });
+            return await connection.QueryFirstOrDefaultAsync<multiplayer_playlist_item>(
+                       "SELECT * FROM multiplayer_playlist_items WHERE room_id = @RoomId AND expired = 0",
+                       new { RoomID = roomId })
+                   ?? await connection.QuerySingleAsync<multiplayer_playlist_item>(
+                       "SELECT * FROM multiplayer_playlist_items WHERE room_id = @RoomId AND id = (SELECT MAX(id) FROM multiplayer_playlist_items WHERE room_id = @RoomId)",
+                       new { RoomId = roomId });
         }
 
         public Task<string?> GetBeatmapChecksumAsync(int beatmapId)
@@ -208,7 +210,8 @@ namespace osu.Server.Spectator.Database
         public async Task EndMatchAsync(MultiplayerRoom room)
         {
             // Remove all non-expired items from the playlist as they have no scores.
-            await connection.ExecuteAsync("DELETE FROM multiplayer_playlist_items p WHERE p.room_id = @RoomID AND p.expired = 0 AND (SELECT COUNT(*) FROM multiplayer_scores s WHERE s.playlist_item_id = p.id) = 0",
+            await connection.ExecuteAsync(
+                "DELETE FROM multiplayer_playlist_items p WHERE p.room_id = @RoomID AND p.expired = 0 AND (SELECT COUNT(*) FROM multiplayer_scores s WHERE s.playlist_item_id = p.id) = 0",
                 new
                 {
                     RoomID = room.RoomID
