@@ -412,11 +412,27 @@ namespace osu.Server.Spectator.Hubs
                         room.MatchTypeImplementation.HandleUserRequest(user, request);
                         break;
 
-                    case EnqueuePlaylistItemRequest addPlaylistItemRequest:
-                        if (!room.QueueImplementation.CanEnqueue(user.UserID, room))
-                            throw new InvalidOperationException("User can not add beatmaps to the room");
+                    case EnqueuePlaylistItemRequest enqueueRequest:
+                        if (enqueueRequest.RulesetID < 0 || enqueueRequest.RulesetID > ILegacyRuleset.MAX_LEGACY_RULESET_ID)
+                            throw new InvalidStateException("Attempted to select an unsupported ruleset.");
 
-                        room.QueueImplementation.Enqueue(addPlaylistItemRequest);
+                        long newItemId;
+                        long currentItemId;
+
+                        using (var db = databaseFactory.GetInstance())
+                        {
+                            string? beatmapChecksum = await db.GetBeatmapChecksumAsync(enqueueRequest.BeatmapID);
+                            if (beatmapChecksum == null)
+                                throw new InvalidStateException("Attempted to select a beatmap which does not exist online.");
+
+                            newItemId = await room.QueueImplementation.Enqueue(enqueueRequest, room, db);
+                            currentItemId = (await db.GetCurrentPlaylistItemAsync(room.RoomID)).id;
+                        }
+
+                        // If the new item is the new "current" item, select it.
+                        if (currentItemId == newItemId)
+                            await selectPlaylistItem(room, newItemId);
+
                         break;
                 }
             }
@@ -469,9 +485,8 @@ namespace osu.Server.Spectator.Hubs
 
                 ensureIsHost(room);
 
-                // Server is authoritative over the playlist item ID.
-                // Todo: This needs to change for tournament mode.
-                settings.PlaylistItemId = room.Settings.PlaylistItemId;
+                using (var db = databaseFactory.GetInstance())
+                    await room.QueueImplementation.ValidateSettings(settings, room, db);
 
                 if (room.Settings.Equals(settings))
                     return;
@@ -635,22 +650,22 @@ namespace osu.Server.Spectator.Hubs
             return proposedWereValid;
         }
 
-        private async Task selectNextPlaylistItem(MultiplayerRoom room)
+        private async Task selectPlaylistItem(MultiplayerRoom room, long playlistItemId)
         {
-            long newPlaylistItemId;
-
             using (var db = databaseFactory.GetInstance())
             {
-                // Expire the current playlist item.
-                var currentItem = await db.GetCurrentPlaylistItemAsync(room.RoomID);
-                await db.ExpirePlaylistItemAsync(currentItem.id);
+                var item = await db.GetPlaylistItemFromRoomAsync(room.RoomID, playlistItemId);
+                if (item == null)
+                    throw new InvalidStateException("Item does not exist in the queue");
 
-                // Todo: Host-rotate matches will require different logic here.
-                newPlaylistItemId = await db.AddPlaylistItemAsync(currentItem);
+                room.Settings.PlaylistItemId = item.id;
+                room.Settings.BeatmapID = item.beatmap_id;
+                room.Settings.RulesetID = item.ruleset_id;
+                room.Settings.BeatmapChecksum = await db.GetBeatmapChecksumAsync(item.beatmap_id) ?? string.Empty;
+                room.Settings.AllowedMods = JsonConvert.DeserializeObject<APIMod[]>(item.allowed_mods ?? string.Empty) ?? Array.Empty<APIMod>();
+                room.Settings.RequiredMods = JsonConvert.DeserializeObject<APIMod[]>(item.required_mods ?? string.Empty) ?? Array.Empty<APIMod>();
             }
 
-            // Distribute the new playlist item ID to clients. All future playlist changes will affect this new one.
-            room.Settings.PlaylistItemId = newPlaylistItemId;
             await Clients.Group(GetGroupId(room.RoomID)).SettingsChanged(room.Settings);
         }
 
@@ -720,7 +735,7 @@ namespace osu.Server.Spectator.Hubs
         /// <summary>
         /// Should be called when user states change, to check whether the new overall room state can trigger a room-level state change.
         /// </summary>
-        private async Task updateRoomStateIfRequired(MultiplayerRoom room)
+        private async Task updateRoomStateIfRequired(ServerMultiplayerRoom room)
         {
             //check whether a room state change is required.
             switch (room.State)
@@ -756,7 +771,11 @@ namespace osu.Server.Spectator.Hubs
                         await changeRoomState(room, MultiplayerRoomState.Open);
                         await Clients.Group(GetGroupId(room.RoomID)).ResultsReady();
 
-                        await selectNextPlaylistItem(room);
+                        using (var db = databaseFactory.GetInstance())
+                        {
+                            var nextItem = await room.QueueImplementation.Dequeue(room, db);
+                            await selectPlaylistItem(room, nextItem);
+                        }
                     }
 
                     break;
