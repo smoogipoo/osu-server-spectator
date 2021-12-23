@@ -785,6 +785,8 @@ namespace osu.Server.Spectator.Hubs
                 case MultiplayerUserState.WaitingForLoad:
                 case MultiplayerUserState.Loaded:
                 case MultiplayerUserState.Playing:
+                case MultiplayerUserState.FinishedPlay:
+                case MultiplayerUserState.Results:
                     return true;
             }
         }
