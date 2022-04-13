@@ -194,7 +194,7 @@ namespace osu.Server.Spectator.Hubs
                     case MultiplayerUserState.Loaded:
                     case MultiplayerUserState.ReadyForGameplay:
                         await ChangeAndBroadcastUserState(room, user, MultiplayerUserState.Playing);
-                        await context.Clients.Client(connectionId).SendAsync(nameof(IMultiplayerClient.MatchStarted));
+                        await context.Clients.Client(connectionId).SendAsync(nameof(IMultiplayerClient.GameplayStarted));
                         break;
 
                     case MultiplayerUserState.WaitingForLoad:
