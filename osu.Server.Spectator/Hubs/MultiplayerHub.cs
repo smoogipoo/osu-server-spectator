@@ -657,18 +657,18 @@ namespace osu.Server.Spectator.Hubs
                     break;
 
                 case MultiplayerRoomState.WaitingForLoad:
-                    if (room.Users.All(u => u.State != MultiplayerUserState.WaitingForLoad))
+                    if (room.Users.All(u => u.State != MultiplayerUserState.Loaded))
                     {
-                        var loadedUsers = room.Users.Where(u => u.State == MultiplayerUserState.Loaded).ToArray();
+                        var readyUsers = room.Users.Where(u => u.State == MultiplayerUserState.ReadyToStart).ToArray();
 
-                        if (loadedUsers.Length == 0)
+                        if (readyUsers.Length == 0)
                         {
                             // all users have bailed from the load sequence. cancel the game start.
                             await HubContext.ChangeRoomState(room, MultiplayerRoomState.Open);
                             return;
                         }
 
-                        foreach (var u in loadedUsers)
+                        foreach (var u in readyUsers)
                             await HubContext.ChangeAndBroadcastUserState(room, u, MultiplayerUserState.Playing);
 
                         await Clients.Group(GetGroupId(room.RoomID)).MatchStarted();
@@ -730,6 +730,12 @@ namespace osu.Server.Spectator.Hubs
 
                     break;
 
+                case MultiplayerUserState.ReadyToStart:
+                    if (oldState != MultiplayerUserState.Loaded)
+                        throw new InvalidStateChangeException(oldState, newState);
+
+                    break;
+
                 case MultiplayerUserState.Playing:
                     // state is managed by the server.
                     throw new InvalidStateChangeException(oldState, newState);
@@ -764,6 +770,7 @@ namespace osu.Server.Spectator.Hubs
 
                 case MultiplayerUserState.WaitingForLoad:
                 case MultiplayerUserState.Loaded:
+                case MultiplayerUserState.ReadyToStart:
                 case MultiplayerUserState.Playing:
                     return true;
             }

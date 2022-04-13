@@ -198,6 +198,16 @@ namespace osu.Server.Spectator.Hubs
         public void StopCountdown() => countdownStopSource?.Cancel();
 
         /// <summary>
+        /// Stops the current countdown of the given type.
+        /// </summary>
+        /// <typeparam name="T">The countdown type.</typeparam>
+        public void StopCountdown<T>()
+        {
+            if (Countdown is T)
+                StopCountdown();
+        }
+
+        /// <summary>
         /// Skips to the end of the currently-running countdown, if one is running,
         /// and runs the callback (e.g. to start the match) as soon as possible unless the countdown has been cancelled.
         /// </summary>
