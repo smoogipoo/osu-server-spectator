@@ -199,6 +199,7 @@ namespace osu.Server.Spectator.Hubs
 
                     case MultiplayerUserState.WaitingForLoad:
                         await ChangeAndBroadcastUserState(room, user, MultiplayerUserState.Idle);
+                        await context.Clients.Client(connectionId).SendAsync(nameof(IMultiplayerClient.AbortGameplayLoad));
                         break;
                 }
             }

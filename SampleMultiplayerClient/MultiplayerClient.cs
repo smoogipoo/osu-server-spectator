@@ -35,6 +35,7 @@ namespace SampleMultiplayerClient
             connection.On<int, BeatmapAvailability>(nameof(IMultiplayerClient.UserBeatmapAvailabilityChanged), ((IMultiplayerClient)this).UserBeatmapAvailabilityChanged);
             connection.On(nameof(IMultiplayerClient.LoadRequested), ((IMultiplayerClient)this).LoadRequested);
             connection.On(nameof(IMultiplayerClient.GameplayStarted), ((IMultiplayerClient)this).GameplayStarted);
+            connection.On(nameof(IMultiplayerClient.AbortGameplayLoad), ((IMultiplayerClient)this).AbortGameplayLoad);
             connection.On(nameof(IMultiplayerClient.ResultsReady), ((IMultiplayerClient)this).ResultsReady);
             connection.On<int, IEnumerable<APIMod>>(nameof(IMultiplayerClient.UserModsChanged), ((IMultiplayerClient)this).UserModsChanged);
             connection.On<MatchRoomState>(nameof(IMultiplayerClient.MatchRoomStateChanged), ((IMultiplayerClient)this).MatchRoomStateChanged);
@@ -208,6 +209,12 @@ namespace SampleMultiplayerClient
         Task IMultiplayerClient.GameplayStarted()
         {
             Console.WriteLine($"User {UserID} was informed the game started");
+            return Task.CompletedTask;
+        }
+
+        public Task AbortGameplayLoad()
+        {
+            Console.WriteLine($"User {UserID} gameplay load was aborted");
             return Task.CompletedTask;
         }
 
