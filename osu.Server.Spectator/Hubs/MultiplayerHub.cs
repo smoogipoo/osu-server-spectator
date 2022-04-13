@@ -724,6 +724,10 @@ namespace osu.Server.Spectator.Hubs
                     throw new InvalidStateChangeException(oldState, newState);
 
                 case MultiplayerUserState.Loaded:
+                    // The server may have aborted gameplay for this user while the Loaded state transition was still in transit.
+                    if (oldState == MultiplayerUserState.Idle)
+                        return;
+
                     if (oldState != MultiplayerUserState.WaitingForLoad)
                         throw new InvalidStateChangeException(oldState, newState);
 
