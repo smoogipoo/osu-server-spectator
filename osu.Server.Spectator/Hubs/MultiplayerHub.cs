@@ -657,24 +657,23 @@ namespace osu.Server.Spectator.Hubs
                     break;
 
                 case MultiplayerRoomState.WaitingForLoad:
-                    if (room.Users.All(u => u.State != MultiplayerUserState.Loaded))
+                    int countGameplayUsers = room.Users.Count(u => isGameplayState(u.State));
+                    int countReadyUsers = room.Users.Count(u => u.State == MultiplayerUserState.ReadyForGameplay);
+
+                    // Cancel game start if all users have bailed gameplay.
+                    if (countGameplayUsers == 0)
                     {
-                        var readyUsers = room.Users.Where(u => u.State == MultiplayerUserState.ReadyToStart).ToArray();
-
-                        if (readyUsers.Length == 0)
-                        {
-                            // all users have bailed from the load sequence. cancel the game start.
-                            await HubContext.ChangeRoomState(room, MultiplayerRoomState.Open);
-                            return;
-                        }
-
-                        foreach (var u in readyUsers)
-                            await HubContext.ChangeAndBroadcastUserState(room, u, MultiplayerUserState.Playing);
-
-                        await Clients.Group(GetGroupId(room.RoomID)).MatchStarted();
-
-                        await HubContext.ChangeRoomState(room, MultiplayerRoomState.Playing);
+                        await HubContext.ChangeRoomState(room, MultiplayerRoomState.Open);
+                        return;
                     }
+
+                    // Start the gameplay start countdown if any users are ready for gameplay.
+                    if (room.Countdown == null && countReadyUsers > 0)
+                        room.StartCountdown(new GameplayStartCountdown { TimeRemaining = TimeSpan.FromSeconds(10) }, HubContext.BeginGameplay);
+
+                    // Begin gameplay if all users are ready for gameplay.
+                    if (countReadyUsers == countGameplayUsers)
+                        await HubContext.BeginGameplay(room);
 
                     break;
 
@@ -730,7 +729,7 @@ namespace osu.Server.Spectator.Hubs
 
                     break;
 
-                case MultiplayerUserState.ReadyToStart:
+                case MultiplayerUserState.ReadyForGameplay:
                     if (oldState != MultiplayerUserState.Loaded)
                         throw new InvalidStateChangeException(oldState, newState);
 
@@ -770,7 +769,7 @@ namespace osu.Server.Spectator.Hubs
 
                 case MultiplayerUserState.WaitingForLoad:
                 case MultiplayerUserState.Loaded:
-                case MultiplayerUserState.ReadyToStart:
+                case MultiplayerUserState.ReadyForGameplay:
                 case MultiplayerUserState.Playing:
                     return true;
             }

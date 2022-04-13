@@ -178,46 +178,32 @@ namespace osu.Server.Spectator.Hubs
             await ChangeRoomState(room, MultiplayerRoomState.WaitingForLoad);
 
             await context.Clients.Group(MultiplayerHub.GetGroupId(room.RoomID, true)).SendAsync(nameof(IMultiplayerClient.LoadRequested));
-
-            startGameplayAfterTimeout(room);
         }
 
-        private void startGameplayAfterTimeout(ServerMultiplayerRoom room)
+        public async Task BeginGameplay(ServerMultiplayerRoom room)
         {
-            room.StartCountdown(new GameplayStartCountdown { TimeRemaining = TimeSpan.FromSeconds(10) }, async r =>
+            foreach (var user in room.Users)
             {
-                if (room.State != MultiplayerRoomState.WaitingForLoad)
-                    return;
+                string? connectionId = users.GetConnectionIdForUser(user.UserID);
 
-                if (room.Users.All(u => u.State != MultiplayerUserState.Loaded))
+                if (connectionId == null)
+                    continue;
+
+                switch (user.State)
                 {
-                    startGameplayAfterTimeout(r);
-                    return;
+                    case MultiplayerUserState.Loaded:
+                    case MultiplayerUserState.ReadyForGameplay:
+                        await ChangeAndBroadcastUserState(room, user, MultiplayerUserState.Playing);
+                        await context.Clients.Client(connectionId).SendAsync(nameof(IMultiplayerClient.MatchStarted));
+                        break;
+
+                    case MultiplayerUserState.WaitingForLoad:
+                        await ChangeAndBroadcastUserState(room, user, MultiplayerUserState.Idle);
+                        break;
                 }
+            }
 
-                foreach (var user in room.Users)
-                {
-                    string? connectionId = users.GetConnectionIdForUser(user.UserID);
-
-                    if (connectionId == null)
-                        continue;
-
-                    switch (user.State)
-                    {
-                        case MultiplayerUserState.Loaded:
-                        case MultiplayerUserState.ReadyToStart:
-                            await ChangeAndBroadcastUserState(room, user, MultiplayerUserState.Playing);
-                            await context.Clients.Client(connectionId).SendAsync(nameof(IMultiplayerClient.MatchStarted));
-                            break;
-
-                        case MultiplayerUserState.WaitingForLoad:
-                            await ChangeAndBroadcastUserState(room, user, MultiplayerUserState.Idle);
-                            break;
-                    }
-                }
-
-                await ChangeRoomState(room, MultiplayerRoomState.Playing);
-            });
+            await ChangeRoomState(room, MultiplayerRoomState.Playing);
         }
 
         private void log(ServerMultiplayerRoom room, MultiplayerRoomUser? user, string message, LogLevel logLevel = LogLevel.Verbose)
