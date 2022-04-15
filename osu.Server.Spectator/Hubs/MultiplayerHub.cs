@@ -668,8 +668,10 @@ namespace osu.Server.Spectator.Hubs
                     }
 
                     // Start the gameplay start countdown if any users are ready for gameplay.
-                    if (room.Countdown == null && countReadyUsers > 0)
+                    if (countReadyUsers > 0 && room.Countdown == null)
                         room.StartCountdown(new GameplayStartCountdown { TimeRemaining = TimeSpan.FromSeconds(10) }, HubContext.BeginGameplay);
+                    else if (countReadyUsers == 0)
+                        room.StopCountdown<GameplayStartCountdown>();
 
                     // Begin gameplay if all users are ready for gameplay.
                     if (countReadyUsers == countGameplayUsers)
