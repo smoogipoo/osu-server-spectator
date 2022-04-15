@@ -11,7 +11,6 @@ using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
 using Moq;
-using osu.Framework.Extensions.IEnumerableExtensions;
 using osu.Game.Online.Multiplayer;
 using osu.Server.Spectator.Database;
 using osu.Server.Spectator.Database.Models;
@@ -204,6 +203,23 @@ namespace osu.Server.Spectator.Tests.Multiplayer
         /// </summary>
         /// <param name="context">The user context.</param>
         protected void SetUserContext(Mock<HubCallerContext> context) => Hub.Context = context.Object;
+
+        protected async Task RunAndFinishGameplay(params Mock<HubCallerContext>[] users)
+        {
+            foreach (var u in users)
+            {
+                SetUserContext(u);
+
+                await Hub.ChangeState(MultiplayerUserState.Loaded);
+                await Hub.ChangeState(MultiplayerUserState.ReadyForGameplay);
+            }
+
+            foreach (var u in users)
+            {
+                SetUserContext(u);
+                await Hub.ChangeState(MultiplayerUserState.FinishedPlay);
+            }
+        }
 
         private void setUpMockDatabase()
         {

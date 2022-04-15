@@ -43,11 +43,10 @@ namespace osu.Server.Spectator.Tests.Multiplayer
             Clients.Verify(clients => clients.Client(ContextUser2.Object.ConnectionId).UserStateChanged(USER_ID_2, MultiplayerUserState.WaitingForLoad), Times.Never);
 
             await Hub.ChangeState(MultiplayerUserState.Loaded);
-            Receiver.Verify(c => c.GameplayStarted(), Times.Once);
+            await Hub.ChangeState(MultiplayerUserState.ReadyForGameplay);
             Clients.Verify(clients => clients.Client(ContextUser2.Object.ConnectionId).UserStateChanged(USER_ID_2, MultiplayerUserState.Playing), Times.Never);
 
             await Hub.ChangeState(MultiplayerUserState.FinishedPlay);
-            Receiver.Verify(c => c.ResultsReady(), Times.Once);
             Clients.Verify(clients => clients.Client(ContextUser2.Object.ConnectionId).UserStateChanged(USER_ID_2, MultiplayerUserState.Results), Times.Never);
         }
 
