@@ -182,6 +182,9 @@ namespace osu.Server.Spectator.Hubs
 
         public async Task BeginGameplay(ServerMultiplayerRoom room)
         {
+            if (!room.Users.Any(u => u.CanStartGameplay()))
+                return;
+
             foreach (var user in room.Users)
             {
                 string? connectionId = users.GetConnectionIdForUser(user.UserID);
@@ -194,6 +197,10 @@ namespace osu.Server.Spectator.Hubs
                     case MultiplayerUserState.Loaded:
                     case MultiplayerUserState.ReadyForGameplay:
                         await ChangeAndBroadcastUserState(room, user, MultiplayerUserState.Playing);
+                        await context.Clients.Client(connectionId).SendAsync(nameof(IMultiplayerClient.GameplayStarted));
+                        break;
+
+                    case MultiplayerUserState.Spectating:
                         await context.Clients.Client(connectionId).SendAsync(nameof(IMultiplayerClient.GameplayStarted));
                         break;
 
