@@ -185,6 +185,9 @@ namespace osu.Server.Spectator.Hubs
             if (!room.Users.Any(u => u.CanStartGameplay()))
                 return;
 
+            // If gameplay started e.g. via all users becoming ready for gameplay, cancel the ongoing start countdown.
+            room.StopCountdown<GameplayStartCountdown>();
+
             foreach (var user in room.Users)
             {
                 string? connectionId = users.GetConnectionIdForUser(user.UserID);
