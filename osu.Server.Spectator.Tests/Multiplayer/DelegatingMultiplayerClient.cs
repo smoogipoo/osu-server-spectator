@@ -115,10 +115,10 @@ namespace osu.Server.Spectator.Tests.Multiplayer
                 await c.GameplayStarted();
         }
 
-        public virtual async Task AbortGameplayLoad()
+        public virtual async Task LoadAborted()
         {
             foreach (var c in clients)
-                await c.AbortGameplayLoad();
+                await c.LoadAborted();
         }
 
         public virtual async Task ResultsReady()
