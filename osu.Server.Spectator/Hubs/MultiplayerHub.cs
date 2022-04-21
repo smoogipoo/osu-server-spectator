@@ -308,10 +308,23 @@ namespace osu.Server.Spectator.Hubs
                 if (user.State == newState)
                     return;
 
-                // A current failure case is a client triggering `Idle` (ie. un-readying) before they received the `WaitingForLoad` message.
-                // There's potential that a client attempts to change state but rather than informing the client we choose to silently block these changes.
-                if (isGameplayState(user.State) && newState == MultiplayerUserState.Idle)
-                    return;
+                // There's a potential that a client attempts to change state while a message from the server is in transit. Silently block these changes rather than informing the client.
+                switch (newState)
+                {
+                    // If a client triggered `Idle` (ie. un-readying) before they received the `WaitingForLoad` message from the match starting.
+                    case MultiplayerUserState.Idle:
+                        if (isGameplayState(user.State))
+                            return;
+
+                        break;
+
+                    // If a client triggered `Loaded` before they received the `Idle` message from their gameplay being aborted.
+                    case MultiplayerUserState.Loaded:
+                        if (!isGameplayState(user.State))
+                            return;
+
+                        break;
+                }
 
                 Log(room, $"User changing state from {user.State} to {newState}");
 
@@ -726,10 +739,6 @@ namespace osu.Server.Spectator.Hubs
                     throw new InvalidStateChangeException(oldState, newState);
 
                 case MultiplayerUserState.Loaded:
-                    // The server may have aborted gameplay for this user while the Loaded state transition was still in transit.
-                    if (oldState == MultiplayerUserState.Idle)
-                        return;
-
                     if (oldState != MultiplayerUserState.WaitingForLoad)
                         throw new InvalidStateChangeException(oldState, newState);
 
