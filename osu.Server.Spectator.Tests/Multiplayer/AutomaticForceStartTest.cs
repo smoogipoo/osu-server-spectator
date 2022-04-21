@@ -7,7 +7,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Moq;
 using osu.Game.Online.Multiplayer;
-using osu.Game.Online.Multiplayer.Countdown;
 using osu.Server.Spectator.Hubs;
 using Xunit;
 
@@ -16,175 +15,62 @@ namespace osu.Server.Spectator.Tests.Multiplayer
     public class AutomaticForceStartTest : MultiplayerTest
     {
         [Fact]
-        public async Task CountdownDoesNotStartWhileAllPlayersLoading()
-        {
-            await Hub.JoinRoom(ROOM_ID);
-            await Hub.ChangeState(MultiplayerUserState.Ready);
-            await Hub.StartMatch();
-
-            using (var usage = await Hub.GetRoom(ROOM_ID))
-            {
-                Assert.False(usage.Item?.IsCountdownRunning);
-                UserReceiver.Verify(r => r.MatchEvent(It.IsAny<CountdownChangedEvent>()), Times.Never);
-            }
-        }
-
-        [Fact]
-        public async Task CountdownDoesNotStartWhileAllPlayersLoaded()
-        {
-            await Hub.JoinRoom(ROOM_ID);
-            await Hub.ChangeState(MultiplayerUserState.Ready);
-            await Hub.StartMatch();
-            await Hub.ChangeState(MultiplayerUserState.Loaded);
-
-            using (var usage = await Hub.GetRoom(ROOM_ID))
-            {
-                Assert.False(usage.Item?.IsCountdownRunning);
-                UserReceiver.Verify(r => r.MatchEvent(It.IsAny<CountdownChangedEvent>()), Times.Never);
-            }
-        }
-
-        [Fact]
-        public async Task CountdownStartsWhenOnePlayerReadyForGameplay()
+        public async Task CountdownStartsWhenMatchStarts()
         {
             await Hub.JoinRoom(ROOM_ID);
             await Hub.ChangeState(MultiplayerUserState.Ready);
 
-            SetUserContext(ContextUser2);
-
-            await Hub.JoinRoom(ROOM_ID);
-            await Hub.ChangeState(MultiplayerUserState.Ready);
-
-            SetUserContext(ContextUser);
-
             await Hub.StartMatch();
-            await Hub.ChangeState(MultiplayerUserState.Loaded);
-
-            using (var usage = await Hub.GetRoom(ROOM_ID))
-            {
-                Assert.False(usage.Item?.IsCountdownRunning);
-                UserReceiver.Verify(r => r.MatchEvent(It.IsAny<CountdownChangedEvent>()), Times.Never);
-            }
-
-            await Hub.ChangeState(MultiplayerUserState.ReadyForGameplay);
             await waitForCountingDown();
 
             using (var usage = await Hub.GetRoom(ROOM_ID))
-            {
                 Assert.True(usage.Item?.IsCountdownRunning);
-                UserReceiver.Verify(r => r.MatchEvent(It.IsAny<CountdownChangedEvent>()), Times.Once);
-                User2Receiver.Verify(r => r.MatchEvent(It.IsAny<CountdownChangedEvent>()), Times.Once);
-            }
         }
 
         [Fact]
-        public async Task CountdownStopsWhenSingleReadyUserAborts()
+        public async Task CountdownStopsWhenAllPlayersAbort()
         {
             await Hub.JoinRoom(ROOM_ID);
             await Hub.ChangeState(MultiplayerUserState.Ready);
 
-            SetUserContext(ContextUser2);
-
-            await Hub.JoinRoom(ROOM_ID);
-            await Hub.ChangeState(MultiplayerUserState.Ready);
-
-            SetUserContext(ContextUser);
-
             await Hub.StartMatch();
-            await Hub.ChangeState(MultiplayerUserState.Loaded);
-            await Hub.ChangeState(MultiplayerUserState.ReadyForGameplay);
-
-            using (var usage = await Hub.GetRoom(ROOM_ID))
-                Assert.True(usage.Item?.IsCountdownRunning);
+            await waitForCountingDown();
 
             await Hub.AbortGameplay();
 
             using (var usage = await Hub.GetRoom(ROOM_ID))
-            {
                 Assert.True(usage.Item?.IsCountdownStoppedOrCancelled);
-                UserReceiver.Verify(r => r.GameplayStarted(), Times.Never);
-            }
         }
 
         [Fact]
-        public async Task GameplayStartsWhenNonReadyUserAborts()
+        public async Task LoadingUsersAbortWhenCountdownEnds()
         {
             await Hub.JoinRoom(ROOM_ID);
             await Hub.ChangeState(MultiplayerUserState.Ready);
-
-            SetUserContext(ContextUser2);
-
-            await Hub.JoinRoom(ROOM_ID);
-            await Hub.ChangeState(MultiplayerUserState.Ready);
-
-            SetUserContext(ContextUser);
-
             await Hub.StartMatch();
-            await Hub.ChangeState(MultiplayerUserState.Loaded);
-            await Hub.ChangeState(MultiplayerUserState.ReadyForGameplay);
-
-            using (var usage = await Hub.GetRoom(ROOM_ID))
-                Assert.True(usage.Item?.IsCountdownRunning);
-
-            SetUserContext(ContextUser2);
-            await Hub.AbortGameplay();
-
-            using (var usage = await Hub.GetRoom(ROOM_ID))
-            {
-                Assert.True(usage.Item?.IsCountdownStoppedOrCancelled);
-                UserReceiver.Verify(r => r.GameplayStarted(), Times.Once);
-            }
-        }
-
-        [Fact]
-        public async Task GameplayStartsForLoadedUsersWhenCountdownEnds()
-        {
-            await Hub.JoinRoom(ROOM_ID);
-            await Hub.ChangeState(MultiplayerUserState.Ready);
-
-            SetUserContext(ContextUser2);
-
-            await Hub.JoinRoom(ROOM_ID);
-            await Hub.ChangeState(MultiplayerUserState.Ready);
-
-            SetUserContext(ContextUser);
-
-            // User 1 becomes ready for gameplay.
-            await Hub.StartMatch();
-            await Hub.ChangeState(MultiplayerUserState.Loaded);
-            await Hub.ChangeState(MultiplayerUserState.ReadyForGameplay);
-
-            // User 2 becomes loaded but isn't ready for gameplay.
-            SetUserContext(ContextUser2);
-            await Hub.ChangeState(MultiplayerUserState.Loaded);
 
             await finishCountdown();
 
             using (var usage = await Hub.GetRoom(ROOM_ID))
             {
-                Assert.True(usage.Item?.State == MultiplayerRoomState.Playing);
-                UserReceiver.Verify(r => r.GameplayStarted(), Times.Once);
-                User2Receiver.Verify(r => r.GameplayStarted(), Times.Once);
+                var room = usage.Item;
+                Debug.Assert(room != null);
+
+                Assert.True(room.State == MultiplayerRoomState.Open);
+                Assert.Equal(MultiplayerUserState.Idle, room.Users.Single(u => u.UserID == USER_ID).State);
+
+                UserReceiver.Verify(r => r.AbortGameplayLoad(), Times.Once);
+                UserReceiver.Verify(r => r.GameplayStarted(), Times.Never);
             }
         }
 
         [Fact]
-        public async Task GameplayDoesNotStartForStillLoadingUsersWhenCountdownEnds()
+        public async Task LoadedUsersStartWhenCountdownEnds()
         {
             await Hub.JoinRoom(ROOM_ID);
             await Hub.ChangeState(MultiplayerUserState.Ready);
-
-            SetUserContext(ContextUser2);
-
-            await Hub.JoinRoom(ROOM_ID);
-            await Hub.ChangeState(MultiplayerUserState.Ready);
-
-            SetUserContext(ContextUser);
-
-            // User 1 becomes ready for gameplay. User 2 remains loading.
             await Hub.StartMatch();
             await Hub.ChangeState(MultiplayerUserState.Loaded);
-            await Hub.ChangeState(MultiplayerUserState.ReadyForGameplay);
 
             await finishCountdown();
 
@@ -194,14 +80,46 @@ namespace osu.Server.Spectator.Tests.Multiplayer
                 Debug.Assert(room != null);
 
                 Assert.True(room.State == MultiplayerRoomState.Playing);
+                Assert.Equal(MultiplayerUserState.Playing, room.Users.Single(u => u.UserID == USER_ID).State);
+
+                UserReceiver.Verify(r => r.AbortGameplayLoad(), Times.Never);
+                UserReceiver.Verify(r => r.GameplayStarted(), Times.Once);
+            }
+        }
+
+        [Fact]
+        public async Task ReadyAndLoadedUsersStartWhenCountdownEnds()
+        {
+            await Hub.JoinRoom(ROOM_ID);
+            await Hub.ChangeState(MultiplayerUserState.Ready);
+
+            SetUserContext(ContextUser2);
+            await Hub.JoinRoom(ROOM_ID);
+            await Hub.ChangeState(MultiplayerUserState.Ready);
+
+            // User 1 becomes ready for gameplay.
+            SetUserContext(ContextUser);
+            await Hub.StartMatch();
+            await Hub.ChangeState(MultiplayerUserState.Loaded);
+            await Hub.ChangeState(MultiplayerUserState.ReadyForGameplay);
+
+            // User 2 becomes loaded.
+            SetUserContext(ContextUser2);
+            await Hub.ChangeState(MultiplayerUserState.Loaded);
+
+            await finishCountdown();
+
+            using (var usage = await Hub.GetRoom(ROOM_ID))
+            {
+                var room = usage.Item;
+                Debug.Assert(room != null);
+
+                Assert.True(room.State == MultiplayerRoomState.Playing);
+                Assert.Equal(MultiplayerUserState.Playing, room.Users.Single(u => u.UserID == USER_ID).State);
+                Assert.Equal(MultiplayerUserState.Playing, room.Users.Single(u => u.UserID == USER_ID_2).State);
 
                 UserReceiver.Verify(r => r.GameplayStarted(), Times.Once);
-                UserReceiver.Verify(r => r.AbortGameplayLoad(), Times.Never);
-                User2Receiver.Verify(r => r.GameplayStarted(), Times.Never);
-                User2Receiver.Verify(r => r.AbortGameplayLoad(), Times.Once);
-
-                Assert.Equal(MultiplayerUserState.Playing, room.Users.Single(u => u.UserID == USER_ID).State);
-                Assert.Equal(MultiplayerUserState.Idle, room.Users.Single(u => u.UserID == USER_ID_2).State);
+                User2Receiver.Verify(r => r.GameplayStarted(), Times.Once);
             }
         }
 

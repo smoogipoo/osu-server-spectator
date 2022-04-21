@@ -673,22 +673,9 @@ namespace osu.Server.Spectator.Hubs
                     int countGameplayUsers = room.Users.Count(u => isGameplayState(u.State));
                     int countReadyUsers = room.Users.Count(u => u.State == MultiplayerUserState.ReadyForGameplay);
 
-                    // Cancel game start if all users have bailed gameplay.
-                    if (countGameplayUsers == 0)
-                    {
-                        await HubContext.ChangeRoomState(room, MultiplayerRoomState.Open);
-                        return;
-                    }
-
-                    // Start the gameplay start countdown if any users are ready for gameplay.
-                    if (countReadyUsers > 0 && room.Countdown == null)
-                        room.StartCountdown(new GameplayStartCountdown { TimeRemaining = TimeSpan.FromSeconds(10) }, HubContext.BeginGameplay);
-                    else if (countReadyUsers == 0)
-                        room.StopCountdown<GameplayStartCountdown>();
-
-                    // Begin gameplay if all users are ready for gameplay.
+                    // Attempt to start gameplay when no more users need to change states. If all users have aborted, this will abort the match.
                     if (countReadyUsers == countGameplayUsers)
-                        await HubContext.BeginGameplay(room);
+                        await HubContext.StartOrStopGameplay(room);
 
                     break;
 
