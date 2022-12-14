@@ -19,13 +19,13 @@ namespace osu.Server.Spectator.Hubs
         public const string REPLAYS_PATH = "replays";
 
         private readonly IDatabaseFactory databaseFactory;
-        private readonly ScoreUploader scoreUploader;
+        private readonly ReplayQueueProcessor replayProcessor;
 
-        public SpectatorHub(IDistributedCache cache, EntityStore<SpectatorClientState> users, IDatabaseFactory databaseFactory, ScoreUploader scoreUploader)
+        public SpectatorHub(IDistributedCache cache, EntityStore<SpectatorClientState> users, IDatabaseFactory databaseFactory, ReplayQueueProcessor replayProcessor)
             : base(cache, users)
         {
             this.databaseFactory = databaseFactory;
-            this.scoreUploader = scoreUploader;
+            this.replayProcessor = replayProcessor;
         }
 
         public async Task BeginPlaySession(long? scoreToken, SpectatorState state)
@@ -118,7 +118,7 @@ namespace osu.Server.Spectator.Hubs
 
                     score.ScoreInfo.Date = DateTimeOffset.UtcNow;
 
-                    scoreUploader.Enqueue(scoreToken.Value, score);
+                    replayProcessor.PushToQueue(new ReplayQueueItem(score));
                 }
                 finally
                 {
