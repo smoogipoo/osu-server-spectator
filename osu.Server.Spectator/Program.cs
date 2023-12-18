@@ -49,13 +49,9 @@ namespace osu.Server.Spectator
                                // TODO: set release name
                            });
 
-#if DEBUG
-                           webBuilder.UseStartup<StartupDevelopment>();
-#else
                            webBuilder.UseStartup<Startup>();
-#endif
 
-                           webBuilder.UseUrls(urls: new[] { "http://*:80" });
+                           webBuilder.UseUrls(urls: new[] { "http://*:8081" });
                        });
         }
     }
