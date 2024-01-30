@@ -8,6 +8,6 @@ namespace osu.Server.Spectator.Storage
 {
     public interface IScoreStorage
     {
-        Task WriteAsync(Score score);
+        ValueTask WriteAsync(Score score);
     }
 }

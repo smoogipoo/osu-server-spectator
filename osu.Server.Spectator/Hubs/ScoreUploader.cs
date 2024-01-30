@@ -49,7 +49,7 @@ namespace osu.Server.Spectator.Hubs
             {
                 // ReSharper disable once MethodSupportsCancellation
                 // We don't want flush to be cancelled as it needs to finish uploading.
-                Flush().Wait();
+                Flush().AsTask().Wait();
                 Thread.Sleep(UploadInterval);
             }
         }
@@ -75,7 +75,7 @@ namespace osu.Server.Spectator.Hubs
         /// <summary>
         /// Flushes all pending uploads.
         /// </summary>
-        public async Task Flush()
+        public async ValueTask Flush()
         {
             try
             {

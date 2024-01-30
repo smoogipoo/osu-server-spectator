@@ -60,7 +60,7 @@ namespace osu.Server.Spectator.Entities
         /// <param name="createOnMissing">Whether to create a new tracking instance if the entity is not already tracked.</param>
         /// <returns>An <see cref="ItemUsage{T}"/> which allows reading or writing the item. This should be disposed after usage.</returns>
         /// <exception cref="KeyNotFoundException">Thrown if <see cref="createOnMissing"/> was false and the item is not in a tracked state.</exception>
-        public async Task<ItemUsage<T>> GetForUse(long id, bool createOnMissing = false)
+        public async ValueTask<ItemUsage<T>> GetForUse(long id, bool createOnMissing = false)
         {
             int retryCount = 10;
 
@@ -110,7 +110,7 @@ namespace osu.Server.Spectator.Entities
             throw new TimeoutException("Could not allocate new entity after multiple retries. Something very bad has happened");
         }
 
-        public async Task Destroy(long id)
+        public async ValueTask Destroy(long id)
         {
             TrackedEntity? item;
 
@@ -229,7 +229,7 @@ namespace osu.Server.Spectator.Entities
             /// </summary>
             /// <exception cref="TimeoutException">Throws if the look took too longer to acquire (see <see cref="EntityStore{T}.lock_timeout"/>).</exception>
             /// <exception cref="InvalidOperationException">Thrown if this usage is not in a valid state to perform the requested operation.</exception>
-            public async Task ObtainLockAsync()
+            public async ValueTask ObtainLockAsync()
             {
                 checkValidForUse(false);
 

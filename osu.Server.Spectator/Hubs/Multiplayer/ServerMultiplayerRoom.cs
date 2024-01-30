@@ -47,7 +47,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer
             Queue = new MultiplayerQueue(this, hub);
         }
 
-        public async Task Initialise(IDatabaseFactory dbFactory)
+        public async ValueTask Initialise(IDatabaseFactory dbFactory)
         {
             ChangeMatchType(Settings.MatchType);
             await Queue.Initialise(dbFactory);
@@ -105,7 +105,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer
         /// </summary>
         /// <param name="countdown">The countdown to start. The <see cref="MultiplayerRoom"/> will receive this object for the duration of the countdown.</param>
         /// <param name="onComplete">A callback to be invoked when the countdown completes.</param>
-        public async Task StartCountdown<T>(T countdown, Func<ServerMultiplayerRoom, Task>? onComplete = null)
+        public async ValueTask StartCountdown<T>(T countdown, Func<ServerMultiplayerRoom, ValueTask>? onComplete = null)
             where T : MultiplayerCountdown
         {
             if (countdown.IsExclusive)
@@ -122,7 +122,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer
 
             countdownInfo.Task = start();
 
-            async Task start()
+            async ValueTask start()
             {
                 // Run the countdown.
                 try
@@ -169,7 +169,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer
         /// Stops all countdowns of the given type, preventing their callbacks from running.
         /// </summary>
         /// <typeparam name="T">The countdown type.</typeparam>
-        public async Task StopAllCountdowns<T>()
+        public async ValueTask StopAllCountdowns<T>()
             where T : MultiplayerCountdown
         {
             foreach (var countdown in ActiveCountdowns.OfType<T>().ToArray())
@@ -180,7 +180,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer
         /// Stops the given countdown, preventing its callback from running.
         /// </summary>
         /// <param name="countdown">The countdown to stop.</param>
-        public async Task StopCountdown(MultiplayerCountdown countdown)
+        public async ValueTask StopCountdown(MultiplayerCountdown countdown)
         {
             if (!trackedCountdowns.TryGetValue(countdown, out CountdownInfo? countdownInfo))
                 return;
@@ -200,10 +200,10 @@ namespace osu.Server.Spectator.Hubs.Multiplayer
         /// <returns>
         /// A task which will become completed when the active countdown completes. Make sure to await this *outside* a usage.
         /// </returns>
-        public Task SkipToEndOfCountdown(MultiplayerCountdown? countdown)
+        public ValueTask SkipToEndOfCountdown(MultiplayerCountdown? countdown)
         {
             if (countdown == null || !trackedCountdowns.TryGetValue(countdown, out CountdownInfo? countdownInfo))
-                return Task.CompletedTask;
+                return ValueTask.CompletedTask;
 
             countdownInfo.SkipSource.Cancel();
             return countdownInfo.Task;
@@ -213,8 +213,8 @@ namespace osu.Server.Spectator.Hubs.Multiplayer
         /// Retrieves the task for the given countdown, if one is running.
         /// </summary>
         /// <param name="countdown">The countdown to retrieve the task of.</param>
-        public Task GetCountdownTask(MultiplayerCountdown? countdown)
-            => countdown == null || !trackedCountdowns.TryGetValue(countdown, out CountdownInfo? countdownInfo) ? Task.CompletedTask : countdownInfo.Task;
+        public ValueTask GetCountdownTask(MultiplayerCountdown? countdown)
+            => countdown == null || !trackedCountdowns.TryGetValue(countdown, out CountdownInfo? countdownInfo) ? ValueTask.CompletedTask : countdownInfo.Task;
 
         /// <summary>
         /// Searches the currently active countdowns and retrieves one of the given type.
@@ -240,7 +240,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer
             public readonly DateTimeOffset StartTime = DateTimeOffset.Now;
             public readonly TimeSpan Duration;
 
-            public Task Task { get; set; } = null!;
+            public ValueTask Task { get; set; }
 
             public CountdownInfo(MultiplayerCountdown countdown)
             {

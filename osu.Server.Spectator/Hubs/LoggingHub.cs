@@ -28,19 +28,19 @@ namespace osu.Server.Spectator.Hubs
             logger = Logger.GetLogger(Name);
         }
 
-        public override async Task OnConnectedAsync()
+        public override Task OnConnectedAsync()
         {
             Log("Connected");
             DogStatsd.Gauge($"{Name}.connected", Interlocked.Increment(ref totalConnected));
-            await base.OnConnectedAsync();
+            return base.OnConnectedAsync();
         }
 
-        public override async Task OnDisconnectedAsync(Exception? exception)
+        public override Task OnDisconnectedAsync(Exception? exception)
         {
             Log("User disconnected");
             DogStatsd.Gauge($"{Name}.connected", Interlocked.Decrement(ref totalConnected));
 
-            await base.OnDisconnectedAsync(exception);
+            return base.OnDisconnectedAsync(exception);
         }
 
         protected void Log(string message, LogLevel logLevel = LogLevel.Verbose) => logger.Add($"[user:{getLoggableUserIdentifier()}] {message.Trim()}", logLevel);

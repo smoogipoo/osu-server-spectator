@@ -65,7 +65,7 @@ namespace osu.Server.Spectator.Database.Models
             played_at = item.PlayedAt;
         }
 
-        public async Task<MultiplayerPlaylistItem> ToMultiplayerPlaylistItem(IDatabaseAccess db)
+        public async ValueTask<MultiplayerPlaylistItem> ToMultiplayerPlaylistItem(IDatabaseAccess db)
         {
             var beatmap = await db.GetBeatmapAsync(beatmap_id);
             var playlistItem = new MultiplayerPlaylistItem

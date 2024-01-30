@@ -138,7 +138,7 @@ namespace osu.Server.Spectator.Tests.Multiplayer
 
         private async Task skipToEndOfCountdown()
         {
-            Task task;
+            ValueTask task;
 
             using (var usage = await Hub.GetRoom(ROOM_ID))
             {

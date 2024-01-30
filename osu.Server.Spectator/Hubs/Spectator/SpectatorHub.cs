@@ -179,9 +179,9 @@ namespace osu.Server.Spectator.Hubs.Spectator
             await Groups.AddToGroupAsync(Context.ConnectionId, GetGroupId(userId));
         }
 
-        public async Task EndWatchingUser(int userId)
+        public Task EndWatchingUser(int userId)
         {
-            await Groups.RemoveFromGroupAsync(Context.ConnectionId, GetGroupId(userId));
+            return Groups.RemoveFromGroupAsync(Context.ConnectionId, GetGroupId(userId));
         }
 
         public override async Task OnConnectedAsync()
@@ -194,7 +194,7 @@ namespace osu.Server.Spectator.Hubs.Spectator
             await base.OnConnectedAsync();
         }
 
-        protected override async Task CleanUpState(SpectatorClientState state)
+        protected override async ValueTask CleanUpState(SpectatorClientState state)
         {
             if (state.State != null)
                 await endPlaySession(state.UserId, state.State);
@@ -204,7 +204,7 @@ namespace osu.Server.Spectator.Hubs.Spectator
 
         public static string GetGroupId(int userId) => $"watch:{userId}";
 
-        private async Task endPlaySession(int userId, SpectatorState state)
+        private async ValueTask endPlaySession(int userId, SpectatorState state)
         {
             // Ensure that the state is no longer playing (e.g. if client crashes).
             if (state.State == SpectatedUserState.Playing)

@@ -22,7 +22,7 @@ namespace osu.Server.Spectator.Tests.Multiplayer
 
             using (var usage = await Hub.GetRoom(ROOM_ID))
             {
-                await usage.Item!.StartCountdown(countdown, _ => Task.CompletedTask);
+                await usage.Item!.StartCountdown(countdown, _ => ValueTask.CompletedTask);
                 Assert.NotNull(usage.Item.FindCountdownById(countdown.ID));
                 Receiver.Verify(r => r.MatchEvent(It.Is<CountdownStartedEvent>(e => e.Countdown == countdown)), Times.Once);
 
@@ -41,14 +41,14 @@ namespace osu.Server.Spectator.Tests.Multiplayer
             countdown.TimeRemaining = TimeSpan.FromSeconds(3);
 
             bool callbackInvoked = false;
-            Task task;
+            ValueTask task;
 
             using (var usage = await Hub.GetRoom(ROOM_ID))
             {
                 await usage.Item!.StartCountdown(countdown, _ =>
                 {
                     callbackInvoked = true;
-                    return Task.CompletedTask;
+                    return ValueTask.CompletedTask;
                 });
 
                 task = usage.Item.GetCountdownTask(countdown);
@@ -68,14 +68,14 @@ namespace osu.Server.Spectator.Tests.Multiplayer
             countdown.TimeRemaining = TimeSpan.FromMinutes(1);
 
             bool callbackInvoked = false;
-            Task task;
+            ValueTask task;
 
             using (var usage = await Hub.GetRoom(ROOM_ID))
             {
                 await usage.Item!.StartCountdown(countdown, _ =>
                 {
                     callbackInvoked = true;
-                    return Task.CompletedTask;
+                    return ValueTask.CompletedTask;
                 });
 
                 task = usage.Item.SkipToEndOfCountdown(countdown);
@@ -95,14 +95,14 @@ namespace osu.Server.Spectator.Tests.Multiplayer
             countdown.TimeRemaining = TimeSpan.FromMinutes(1);
 
             bool callbackInvoked = false;
-            Task task;
+            ValueTask task;
 
             using (var usage = await Hub.GetRoom(ROOM_ID))
             {
                 await usage.Item!.StartCountdown(countdown, _ =>
                 {
                     callbackInvoked = true;
-                    return Task.CompletedTask;
+                    return ValueTask.CompletedTask;
                 });
 
                 task = usage.Item.GetCountdownTask(countdown);
@@ -125,8 +125,8 @@ namespace osu.Server.Spectator.Tests.Multiplayer
 
             using (var usage = await Hub.GetRoom(ROOM_ID))
             {
-                await usage.Item!.StartCountdown(countdown1, _ => Task.CompletedTask);
-                await usage.Item!.StartCountdown(countdown2, _ => Task.CompletedTask);
+                await usage.Item!.StartCountdown(countdown1, _ => ValueTask.CompletedTask);
+                await usage.Item!.StartCountdown(countdown2, _ => ValueTask.CompletedTask);
                 Assert.NotNull(usage.Item.FindCountdownById(countdown1.ID));
                 Assert.NotNull(usage.Item.FindCountdownById(countdown2.ID));
                 Receiver.Verify(r => r.MatchEvent(It.Is<CountdownStartedEvent>(e => e.Countdown == countdown2)), Times.Once);
@@ -146,21 +146,21 @@ namespace osu.Server.Spectator.Tests.Multiplayer
 
             bool callbackInvoked1 = false;
             bool callbackInvoked2 = false;
-            Task task1;
-            Task task2;
+            ValueTask task1;
+            ValueTask task2;
 
             using (var usage = await Hub.GetRoom(ROOM_ID))
             {
                 await usage.Item!.StartCountdown(countdown1, _ =>
                 {
                     callbackInvoked1 = true;
-                    return Task.CompletedTask;
+                    return ValueTask.CompletedTask;
                 });
 
                 await usage.Item!.StartCountdown(countdown2, _ =>
                 {
                     callbackInvoked2 = true;
-                    return Task.CompletedTask;
+                    return ValueTask.CompletedTask;
                 });
 
                 task1 = usage.Item.GetCountdownTask(countdown1);
@@ -186,21 +186,21 @@ namespace osu.Server.Spectator.Tests.Multiplayer
 
             bool callbackInvoked1 = false;
             bool callbackInvoked2 = false;
-            Task task1;
-            Task task2;
+            ValueTask task1;
+            ValueTask task2;
 
             using (var usage = await Hub.GetRoom(ROOM_ID))
             {
                 await usage.Item!.StartCountdown(countdown1, _ =>
                 {
                     callbackInvoked1 = true;
-                    return Task.CompletedTask;
+                    return ValueTask.CompletedTask;
                 });
 
                 await usage.Item!.StartCountdown(countdown2, _ =>
                 {
                     callbackInvoked2 = true;
-                    return Task.CompletedTask;
+                    return ValueTask.CompletedTask;
                 });
 
                 task1 = usage.Item.SkipToEndOfCountdown(countdown1);
@@ -226,21 +226,21 @@ namespace osu.Server.Spectator.Tests.Multiplayer
 
             bool callbackInvoked1 = false;
             bool callbackInvoked2 = false;
-            Task task1;
-            Task task2;
+            ValueTask task1;
+            ValueTask task2;
 
             using (var usage = await Hub.GetRoom(ROOM_ID))
             {
                 await usage.Item!.StartCountdown(countdown1, _ =>
                 {
                     callbackInvoked1 = true;
-                    return Task.CompletedTask;
+                    return ValueTask.CompletedTask;
                 });
 
                 await usage.Item!.StartCountdown(countdown2, _ =>
                 {
                     callbackInvoked2 = true;
-                    return Task.CompletedTask;
+                    return ValueTask.CompletedTask;
                 });
 
                 task1 = usage.Item.SkipToEndOfCountdown(countdown1);
@@ -268,9 +268,9 @@ namespace osu.Server.Spectator.Tests.Multiplayer
 
             using (var usage = await Hub.GetRoom(ROOM_ID))
             {
-                await usage.Item!.StartCountdown(countdown1.Object, _ => Task.CompletedTask);
-                await usage.Item!.StartCountdown(countdown2.Object, _ => Task.CompletedTask);
-                await usage.Item!.StartCountdown(countdown3.Object, _ => Task.CompletedTask);
+                await usage.Item!.StartCountdown(countdown1.Object, _ => ValueTask.CompletedTask);
+                await usage.Item!.StartCountdown(countdown2.Object, _ => ValueTask.CompletedTask);
+                await usage.Item!.StartCountdown(countdown3.Object, _ => ValueTask.CompletedTask);
                 Assert.Null(usage.Item.FindCountdownById(countdown1.Object.ID));
                 Assert.NotNull(usage.Item.FindCountdownById(countdown2.Object.ID));
                 Assert.NotNull(usage.Item.FindCountdownById(countdown3.Object.ID));

@@ -41,7 +41,7 @@ namespace osu.Server.Spectator.Tests.Multiplayer
 
             await Hub.SendMatchRequest(new StartMatchCountdownRequest { Duration = TimeSpan.FromSeconds(3) });
 
-            Task task;
+            ValueTask task;
 
             using (var usage = await Hub.GetRoom(ROOM_ID))
             {
@@ -380,7 +380,7 @@ namespace osu.Server.Spectator.Tests.Multiplayer
 
         private async Task skipToEndOfCountdown()
         {
-            Task task;
+            ValueTask task;
 
             using (var usage = await Hub.GetRoom(ROOM_ID))
             {

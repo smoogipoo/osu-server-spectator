@@ -24,7 +24,7 @@ namespace osu.Server.Spectator
             });
         }
 
-        public static async Task Upload(string bucket, string key, Stream stream, long contentLength, string? contentType = null)
+        public static async ValueTask Upload(string bucket, string key, Stream stream, long contentLength, string? contentType = null)
         {
             using (var client = getClient())
             {

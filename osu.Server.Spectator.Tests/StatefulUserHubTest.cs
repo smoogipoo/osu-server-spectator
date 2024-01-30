@@ -51,7 +51,7 @@ namespace osu.Server.Spectator.Tests
 
             await hub.OnDisconnectedAsync(null);
 
-            await Assert.ThrowsAsync<KeyNotFoundException>(() => userStates.GetForUse(user_id));
+            await Assert.ThrowsAsync<KeyNotFoundException>(async () => await userStates.GetForUse(user_id));
         }
 
         [Fact]
@@ -73,7 +73,7 @@ namespace osu.Server.Spectator.Tests
             await hub.OnConnectedAsync();
 
             // original state should have been destroyed.
-            await Assert.ThrowsAsync<KeyNotFoundException>(() => userStates.GetForUse(user_id));
+            await Assert.ThrowsAsync<KeyNotFoundException>(async () => await userStates.GetForUse(user_id));
         }
 
         [Fact]
@@ -89,7 +89,7 @@ namespace osu.Server.Spectator.Tests
             await hub.OnConnectedAsync();
 
             // original state should have been destroyed.
-            await Assert.ThrowsAsync<KeyNotFoundException>(() => userStates.GetForUse(user_id));
+            await Assert.ThrowsAsync<KeyNotFoundException>(async () => await userStates.GetForUse(user_id));
 
             // create a state using the second connection.
             await hub.CreateUserState();

@@ -224,7 +224,7 @@ namespace osu.Server.Spectator.Tests.Multiplayer
                     .ReturnsAsync(new database_beatmap { approved = BeatmapOnlineStatus.Ranked, checksum = "checksum" }); // doesn't matter if bogus, just needs to be non-empty.
 
             Database.Setup(db => db.GetPlaylistItemAsync(It.IsAny<long>(), It.IsAny<long>()))
-                    .Returns<long, long>((roomId, playlistItemId) => Task.FromResult(playlistItems.Single(i => i.id == playlistItemId && i.room_id == roomId).Clone()));
+                    .Returns<long, long>((roomId, playlistItemId) => ValueTask.FromResult(playlistItems.Single(i => i.id == playlistItemId && i.room_id == roomId).Clone()));
 
             Database.Setup(db => db.AddPlaylistItemAsync(It.IsAny<multiplayer_playlist_item>()))
                     .Callback<multiplayer_playlist_item>(item =>
@@ -254,7 +254,7 @@ namespace osu.Server.Spectator.Tests.Multiplayer
                     });
 
             Database.Setup(db => db.GetAllPlaylistItemsAsync(It.IsAny<long>()))
-                    .Returns<long>(roomId => Task.FromResult(playlistItems.Where(i => i.room_id == roomId).Select(i => i.Clone()).ToArray()));
+                    .Returns<long>(roomId => ValueTask.FromResult(playlistItems.Where(i => i.room_id == roomId).Select(i => i.Clone()).ToArray()));
 
             Database.Setup(db => db.RemovePlaylistItemAsync(It.IsAny<long>(), It.IsAny<long>()))
                     .Callback<long, long>((roomId, playlistItemId) => playlistItems.RemoveAll(i => i.room_id == roomId && i.id == playlistItemId));

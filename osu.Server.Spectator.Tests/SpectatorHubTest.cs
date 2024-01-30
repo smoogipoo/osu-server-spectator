@@ -120,7 +120,7 @@ namespace osu.Server.Spectator.Tests
             hub.Context = mockContext.Object;
             hub.Clients = mockClients.Object;
 
-            mockDatabase.Setup(db => db.GetScoreFromToken(1234)).Returns(Task.FromResult<SoloScore?>(new SoloScore
+            mockDatabase.Setup(db => db.GetScoreFromToken(1234)).Returns(ValueTask.FromResult<SoloScore?>(new SoloScore
             {
                 id = 456,
                 passed = true
@@ -268,13 +268,13 @@ namespace osu.Server.Spectator.Tests
             hub.Context = mockContext.Object;
             hub.Clients = mockClients.Object;
 
-            mockDatabase.Setup(db => db.GetScoreFromToken(1234)).Returns(Task.FromResult<SoloScore?>(new SoloScore
+            mockDatabase.Setup(db => db.GetScoreFromToken(1234)).Returns(ValueTask.FromResult<SoloScore?>(new SoloScore
             {
                 id = 456,
                 passed = true
             }));
 
-            mockDatabase.Setup(db => db.GetBeatmapAsync(beatmap_id)).Returns(Task.FromResult(new database_beatmap
+            mockDatabase.Setup(db => db.GetBeatmapAsync(beatmap_id)).Returns(ValueTask.FromResult(new database_beatmap
             {
                 approved = status,
                 checksum = "checksum"
@@ -310,7 +310,7 @@ namespace osu.Server.Spectator.Tests
             hub.Context = mockContext.Object;
             hub.Clients = mockClients.Object;
 
-            mockDatabase.Setup(db => db.GetScoreFromToken(1234)).Returns(Task.FromResult<SoloScore?>(new SoloScore
+            mockDatabase.Setup(db => db.GetScoreFromToken(1234)).Returns(ValueTask.FromResult<SoloScore?>(new SoloScore
             {
                 id = 456,
                 passed = false

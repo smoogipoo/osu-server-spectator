@@ -81,7 +81,7 @@ namespace osu.Server.Spectator.Tests.Multiplayer
             using (var room = await Rooms.GetForUse(ROOM_ID))
                 Assert.True(room.Item?.Users.All(u => u.UserID != USER_ID_2));
 
-            await Assert.ThrowsAsync<KeyNotFoundException>(() => UserStates.GetForUse(USER_ID_2));
+            await Assert.ThrowsAsync<KeyNotFoundException>(async () => await UserStates.GetForUse(USER_ID_2));
         }
 
         [Fact]

@@ -96,7 +96,7 @@ namespace osu.Server.Spectator.Tests
             // second call should be allowed (and run as a noop).
             await store.Destroy(1);
 
-            await Assert.ThrowsAsync<KeyNotFoundException>(() => store.GetForUse(1));
+            await Assert.ThrowsAsync<KeyNotFoundException>(async () => await store.GetForUse(1));
 
             using (var thirdGet = await store.GetForUse(1, true))
                 Assert.Null(thirdGet.Item);
@@ -117,7 +117,7 @@ namespace osu.Server.Spectator.Tests
                 Assert.Throws<InvalidOperationException>(() => secondGet.Item);
             }
 
-            await Assert.ThrowsAsync<KeyNotFoundException>(() => store.GetForUse(1));
+            await Assert.ThrowsAsync<KeyNotFoundException>(async () => await store.GetForUse(1));
 
             using (var thirdGet = await store.GetForUse(1, true))
                 Assert.Null(thirdGet.Item);
@@ -180,7 +180,7 @@ namespace osu.Server.Spectator.Tests
             {
                 firstGet.Item = new TestItem("test data");
 
-                await Assert.ThrowsAsync<TimeoutException>(() => store.GetForUse(1));
+                await Assert.ThrowsAsync<TimeoutException>(async () => await store.GetForUse(1));
             }
         }
 

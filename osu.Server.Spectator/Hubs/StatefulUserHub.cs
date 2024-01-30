@@ -55,7 +55,7 @@ namespace osu.Server.Spectator.Hubs
             await cleanUpState(true);
         }
 
-        private async Task cleanUpState(bool isDisconnect)
+        private async ValueTask cleanUpState(bool isDisconnect)
         {
             ItemUsage<TUserState>? usage;
 
@@ -104,9 +104,9 @@ namespace osu.Server.Spectator.Hubs
         /// <summary>
         /// Perform any cleanup required on the provided state.
         /// </summary>
-        protected virtual Task CleanUpState(TUserState state) => Task.CompletedTask;
+        protected virtual ValueTask CleanUpState(TUserState state) => ValueTask.CompletedTask;
 
-        protected async Task<ItemUsage<TUserState>> GetOrCreateLocalUserState()
+        protected async ValueTask<ItemUsage<TUserState>> GetOrCreateLocalUserState()
         {
             var usage = await UserStates.GetForUse(Context.GetUserId(), true);
 
@@ -119,6 +119,6 @@ namespace osu.Server.Spectator.Hubs
             return usage;
         }
 
-        protected Task<ItemUsage<TUserState>> GetStateFromUser(int userId) => UserStates.GetForUse(userId);
+        protected ValueTask<ItemUsage<TUserState>> GetStateFromUser(int userId) => UserStates.GetForUse(userId);
     }
 }

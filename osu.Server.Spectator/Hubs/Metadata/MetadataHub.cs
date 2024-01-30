@@ -87,7 +87,7 @@ namespace osu.Server.Spectator.Hubs.Metadata
             }
         }
 
-        protected override async Task CleanUpState(MetadataClientState state)
+        protected override async ValueTask CleanUpState(MetadataClientState state)
         {
             await base.CleanUpState(state);
             await broadcastUserPresenceUpdate(state.UserId, null);

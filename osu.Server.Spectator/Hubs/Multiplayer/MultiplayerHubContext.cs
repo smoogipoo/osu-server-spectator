@@ -41,32 +41,32 @@ namespace osu.Server.Spectator.Hubs.Multiplayer
             logger = Logger.GetLogger(nameof(MultiplayerHub).Replace("Hub", string.Empty));
         }
 
-        public Task NotifyNewMatchEvent(ServerMultiplayerRoom room, MatchServerEvent e)
+        public async ValueTask NotifyNewMatchEvent(ServerMultiplayerRoom room, MatchServerEvent e)
         {
-            return context.Clients.Group(MultiplayerHub.GetGroupId(room.RoomID)).SendAsync(nameof(IMultiplayerClient.MatchEvent), e);
+            await context.Clients.Group(MultiplayerHub.GetGroupId(room.RoomID)).SendAsync(nameof(IMultiplayerClient.MatchEvent), e);
         }
 
-        public Task NotifyMatchRoomStateChanged(ServerMultiplayerRoom room)
+        public async ValueTask NotifyMatchRoomStateChanged(ServerMultiplayerRoom room)
         {
-            return context.Clients.Group(MultiplayerHub.GetGroupId(room.RoomID)).SendAsync(nameof(IMultiplayerClient.MatchRoomStateChanged), room.MatchState);
+            await context.Clients.Group(MultiplayerHub.GetGroupId(room.RoomID)).SendAsync(nameof(IMultiplayerClient.MatchRoomStateChanged), room.MatchState);
         }
 
-        public Task NotifyMatchUserStateChanged(ServerMultiplayerRoom room, MultiplayerRoomUser user)
+        public async ValueTask NotifyMatchUserStateChanged(ServerMultiplayerRoom room, MultiplayerRoomUser user)
         {
-            return context.Clients.Group(MultiplayerHub.GetGroupId(room.RoomID)).SendAsync(nameof(IMultiplayerClient.MatchUserStateChanged), user.UserID, user.MatchState);
+            await context.Clients.Group(MultiplayerHub.GetGroupId(room.RoomID)).SendAsync(nameof(IMultiplayerClient.MatchUserStateChanged), user.UserID, user.MatchState);
         }
 
-        public Task NotifyPlaylistItemAdded(ServerMultiplayerRoom room, MultiplayerPlaylistItem item)
+        public async ValueTask NotifyPlaylistItemAdded(ServerMultiplayerRoom room, MultiplayerPlaylistItem item)
         {
-            return context.Clients.Group(MultiplayerHub.GetGroupId(room.RoomID)).SendAsync(nameof(IMultiplayerClient.PlaylistItemAdded), item);
+            await context.Clients.Group(MultiplayerHub.GetGroupId(room.RoomID)).SendAsync(nameof(IMultiplayerClient.PlaylistItemAdded), item);
         }
 
-        public Task NotifyPlaylistItemRemoved(ServerMultiplayerRoom room, long playlistItemId)
+        public async ValueTask NotifyPlaylistItemRemoved(ServerMultiplayerRoom room, long playlistItemId)
         {
-            return context.Clients.Group(MultiplayerHub.GetGroupId(room.RoomID)).SendAsync(nameof(IMultiplayerClient.PlaylistItemRemoved), playlistItemId);
+            await context.Clients.Group(MultiplayerHub.GetGroupId(room.RoomID)).SendAsync(nameof(IMultiplayerClient.PlaylistItemRemoved), playlistItemId);
         }
 
-        public async Task NotifyPlaylistItemChanged(ServerMultiplayerRoom room, MultiplayerPlaylistItem item, bool beatmapChanged)
+        public async ValueTask NotifyPlaylistItemChanged(ServerMultiplayerRoom room, MultiplayerPlaylistItem item, bool beatmapChanged)
         {
             await EnsureAllUsersValidMods(room);
 
@@ -76,7 +76,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer
             await context.Clients.Group(MultiplayerHub.GetGroupId(room.RoomID)).SendAsync(nameof(IMultiplayerClient.PlaylistItemChanged), item);
         }
 
-        public async Task NotifySettingsChanged(ServerMultiplayerRoom room, bool playlistItemChanged)
+        public async ValueTask NotifySettingsChanged(ServerMultiplayerRoom room, bool playlistItemChanged)
         {
             await EnsureAllUsersValidMods(room);
 
@@ -86,12 +86,9 @@ namespace osu.Server.Spectator.Hubs.Multiplayer
             await context.Clients.Group(MultiplayerHub.GetGroupId(room.RoomID)).SendAsync(nameof(IMultiplayerClient.SettingsChanged), room.Settings);
         }
 
-        public Task<ItemUsage<ServerMultiplayerRoom>> GetRoom(long roomId)
-        {
-            return rooms.GetForUse(roomId);
-        }
+        public ValueTask<ItemUsage<ServerMultiplayerRoom>> GetRoom(long roomId) => rooms.GetForUse(roomId);
 
-        public async Task UnreadyAllUsers(ServerMultiplayerRoom room, bool resetBeatmapAvailability)
+        public async ValueTask UnreadyAllUsers(ServerMultiplayerRoom room, bool resetBeatmapAvailability)
         {
             log(room, null, "Unreadying all users");
 
@@ -111,7 +108,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer
             await room.StopAllCountdowns<MatchStartCountdown>();
         }
 
-        public async Task EnsureAllUsersValidMods(ServerMultiplayerRoom room)
+        public async ValueTask EnsureAllUsersValidMods(ServerMultiplayerRoom room)
         {
             foreach (var user in room.Users)
             {
@@ -120,7 +117,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer
             }
         }
 
-        public async Task ChangeUserMods(IEnumerable<APIMod> newMods, ServerMultiplayerRoom room, MultiplayerRoomUser user)
+        public async ValueTask ChangeUserMods(IEnumerable<APIMod> newMods, ServerMultiplayerRoom room, MultiplayerRoomUser user)
         {
             var newModList = newMods.ToList();
 
@@ -135,7 +132,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer
             await context.Clients.Group(MultiplayerHub.GetGroupId(room.RoomID)).SendAsync(nameof(IMultiplayerClient.UserModsChanged), user.UserID, newModList);
         }
 
-        public async Task ChangeAndBroadcastUserState(ServerMultiplayerRoom room, MultiplayerRoomUser user, MultiplayerUserState state)
+        public async ValueTask ChangeAndBroadcastUserState(ServerMultiplayerRoom room, MultiplayerRoomUser user, MultiplayerUserState state)
         {
             log(room, user, $"User state changed from {user.State} to {state}");
 
@@ -144,7 +141,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer
             await context.Clients.Group(MultiplayerHub.GetGroupId(room.RoomID)).SendAsync(nameof(IMultiplayerClient.UserStateChanged), user.UserID, user.State);
         }
 
-        public async Task ChangeAndBroadcastUserBeatmapAvailability(ServerMultiplayerRoom room, MultiplayerRoomUser user, BeatmapAvailability newBeatmapAvailability)
+        public async ValueTask ChangeAndBroadcastUserBeatmapAvailability(ServerMultiplayerRoom room, MultiplayerRoomUser user, BeatmapAvailability newBeatmapAvailability)
         {
             if (user.BeatmapAvailability.Equals(newBeatmapAvailability))
                 return;
@@ -154,14 +151,14 @@ namespace osu.Server.Spectator.Hubs.Multiplayer
             await context.Clients.Group(MultiplayerHub.GetGroupId(room.RoomID)).SendAsync(nameof(IMultiplayerClient.UserBeatmapAvailabilityChanged), user.UserID, user.BeatmapAvailability);
         }
 
-        public async Task ChangeRoomState(ServerMultiplayerRoom room, MultiplayerRoomState newState)
+        public async ValueTask ChangeRoomState(ServerMultiplayerRoom room, MultiplayerRoomState newState)
         {
             log(room, null, $"Room state changing from {room.State} to {newState}");
             room.State = newState;
             await context.Clients.Group(MultiplayerHub.GetGroupId(room.RoomID)).SendAsync(nameof(IMultiplayerClient.RoomStateChanged), newState);
         }
 
-        public async Task StartMatch(ServerMultiplayerRoom room)
+        public async ValueTask StartMatch(ServerMultiplayerRoom room)
         {
             if (room.State != MultiplayerRoomState.Open)
                 throw new InvalidStateException("Can't start match when already in a running state.");
@@ -195,7 +192,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer
         /// Starts gameplay for all users in the <see cref="MultiplayerUserState.Loaded"/> or <see cref="MultiplayerUserState.ReadyForGameplay"/> states,
         /// and aborts gameplay for any others in the <see cref="MultiplayerUserState.WaitingForLoad"/> state.
         /// </summary>
-        public async Task StartOrStopGameplay(ServerMultiplayerRoom room)
+        public async ValueTask StartOrStopGameplay(ServerMultiplayerRoom room)
         {
             Debug.Assert(room.State == MultiplayerRoomState.WaitingForLoad);
 

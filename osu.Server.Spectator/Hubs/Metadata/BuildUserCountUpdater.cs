@@ -46,7 +46,7 @@ namespace osu.Server.Spectator.Hubs.Metadata
             {
                 try
                 {
-                    updateBuildUserCounts().Wait();
+                    updateBuildUserCounts().AsTask();
                 }
                 catch (Exception ex)
                 {
@@ -57,7 +57,7 @@ namespace osu.Server.Spectator.Hubs.Metadata
             }
         }
 
-        private async Task updateBuildUserCounts()
+        private async ValueTask updateBuildUserCounts()
         {
             if (!AppSettings.TrackBuildUserCounts)
                 return;

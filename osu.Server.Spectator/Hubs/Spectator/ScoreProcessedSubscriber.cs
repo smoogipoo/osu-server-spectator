@@ -78,7 +78,7 @@ namespace osu.Server.Spectator.Hubs.Spectator
             }
         }
 
-        public async Task RegisterForNotificationAsync(string receiverConnectionId, int userId, long scoreToken)
+        public async ValueTask RegisterForNotificationAsync(string receiverConnectionId, int userId, long scoreToken)
         {
             try
             {

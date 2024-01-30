@@ -73,7 +73,7 @@ namespace osu.Server.Spectator
                 {
                     TimeRemaining = TIME_BEFORE_FORCEFUL_SHUTDOWN
                 });
-            }).Wait();
+            }).AsTask().Wait();
 
             TimeSpan timeWaited = new TimeSpan();
             TimeSpan timeBetweenChecks = TimeSpan.FromSeconds(10);
@@ -96,7 +96,7 @@ namespace osu.Server.Spectator
             Logger.Log("All entities cleaned up. Server shutdown unblocking.");
         }
 
-        private async Task performOnAllRooms(Func<ServerMultiplayerRoom, Task> action)
+        private async ValueTask performOnAllRooms(Func<ServerMultiplayerRoom, Task> action)
         {
             var rooms = roomStore.GetAllEntities();
 

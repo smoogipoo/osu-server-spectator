@@ -36,7 +36,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer
         /// <summary>
         /// Initialises the queue from the database.
         /// </summary>
-        public async Task Initialise(IDatabaseFactory dbFactory)
+        public async ValueTask Initialise(IDatabaseFactory dbFactory)
         {
             this.dbFactory = dbFactory;
 
@@ -54,7 +54,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer
         /// <summary>
         /// Updates the queue as a result of a change in the queueing mode.
         /// </summary>
-        public async Task UpdateFromQueueModeChange()
+        public async ValueTask UpdateFromQueueModeChange()
         {
             if (dbFactory == null) throw new InvalidOperationException($"Call {nameof(Initialise)} first.");
 
@@ -73,7 +73,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer
         /// <summary>
         /// Expires the current playlist item and advances to the next one in the order defined by the queueing mode.
         /// </summary>
-        public async Task FinishCurrentItem()
+        public async ValueTask FinishCurrentItem()
         {
             if (dbFactory == null) throw new InvalidOperationException($"Call {nameof(Initialise)} first.");
 
@@ -101,7 +101,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer
         /// <param name="user">The user adding the item.</param>
         /// <exception cref="NotHostException">If the adding user is not the host in host-only mode.</exception>
         /// <exception cref="InvalidStateException">If the given playlist item is not valid.</exception>
-        public async Task AddItem(MultiplayerPlaylistItem item, MultiplayerRoomUser user)
+        public async ValueTask AddItem(MultiplayerPlaylistItem item, MultiplayerRoomUser user)
         {
             if (dbFactory == null) throw new InvalidOperationException($"Call {nameof(Initialise)} first.");
 
@@ -139,7 +139,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer
             }
         }
 
-        public async Task EditItem(MultiplayerPlaylistItem item, MultiplayerRoomUser user)
+        public async ValueTask EditItem(MultiplayerPlaylistItem item, MultiplayerRoomUser user)
         {
             if (dbFactory == null) throw new InvalidOperationException($"Call {nameof(Initialise)} first.");
 
@@ -192,7 +192,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer
         /// </summary>
         /// <param name="playlistItemId">The item to remove.</param>
         /// <param name="user">The user removing the item.</param>
-        public async Task RemoveItem(long playlistItemId, MultiplayerRoomUser user)
+        public async ValueTask RemoveItem(long playlistItemId, MultiplayerRoomUser user)
         {
             if (dbFactory == null) throw new InvalidOperationException($"Call {nameof(Initialise)} first.");
 
@@ -237,7 +237,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer
         /// Duplicates <see cref="CurrentItem"/> into the database.
         /// </summary>
         /// <param name="db">The database connection.</param>
-        private async Task duplicateCurrentItem(IDatabaseAccess db) => await addItem(db, new MultiplayerPlaylistItem
+        private async ValueTask duplicateCurrentItem(IDatabaseAccess db) => await addItem(db, new MultiplayerPlaylistItem
         {
             OwnerID = CurrentItem.OwnerID,
             BeatmapID = CurrentItem.BeatmapID,
@@ -247,7 +247,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer
             RequiredMods = CurrentItem.RequiredMods
         });
 
-        private async Task addItem(IDatabaseAccess db, MultiplayerPlaylistItem item)
+        private async ValueTask addItem(IDatabaseAccess db, MultiplayerPlaylistItem item)
         {
             // Add the item to the end of the list initially.
             item.PlaylistOrder = ushort.MaxValue;
@@ -264,7 +264,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer
         /// <summary>
         /// Updates <see cref="CurrentItem"/> and the playlist item ID stored in the room's settings.
         /// </summary>
-        private async Task updateCurrentItem()
+        private async ValueTask updateCurrentItem()
         {
             // Pick the next non-expired playlist item by playlist order, or default to the most-recently-expired item.
             MultiplayerPlaylistItem nextItem = UpcomingItems.FirstOrDefault() ?? room.Playlist.OrderByDescending(i => i.PlayedAt).First();
@@ -281,7 +281,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer
         /// <summary>
         /// Updates the order of items in the playlist according to the queueing mode.
         /// </summary>
-        private async Task updatePlaylistOrder(IDatabaseAccess db)
+        private async ValueTask updatePlaylistOrder(IDatabaseAccess db)
         {
             List<MultiplayerPlaylistItem> orderedActiveItems;
 

@@ -55,7 +55,7 @@ namespace osu.Server.Spectator.Tests.Multiplayer
             await Assert.ThrowsAsync<InvalidStateException>(() => Hub.JoinRoom(ROOM_ID));
 
             // ensure no state was left behind.
-            await Assert.ThrowsAsync<KeyNotFoundException>(() => UserStates.GetForUse(USER_ID));
+            await Assert.ThrowsAsync<KeyNotFoundException>(async () => await UserStates.GetForUse(USER_ID));
         }
 
         [Fact]
@@ -71,7 +71,7 @@ namespace osu.Server.Spectator.Tests.Multiplayer
             await Assert.ThrowsAsync<InvalidStateException>(() => Hub.JoinRoom(ROOM_ID));
 
             // ensure no state was left behind.
-            await Assert.ThrowsAsync<KeyNotFoundException>(() => UserStates.GetForUse(USER_ID));
+            await Assert.ThrowsAsync<KeyNotFoundException>(async () => await UserStates.GetForUse(USER_ID));
         }
 
         [Fact]
@@ -125,7 +125,7 @@ namespace osu.Server.Spectator.Tests.Multiplayer
             await Hub.LeaveRoom();
 
             // ensure no state was left behind.
-            await Assert.ThrowsAsync<KeyNotFoundException>(() => UserStates.GetForUse(USER_ID));
+            await Assert.ThrowsAsync<KeyNotFoundException>(async () => await UserStates.GetForUse(USER_ID));
         }
 
         [Fact]
@@ -171,32 +171,32 @@ namespace osu.Server.Spectator.Tests.Multiplayer
             SetUserContext(ContextUser2); // not the correct user to join the game first; triggers host mismatch failure.
             await Assert.ThrowsAnyAsync<Exception>(() => Hub.JoinRoom(ROOM_ID));
 
-            await Assert.ThrowsAsync<KeyNotFoundException>(() => Rooms.GetForUse(ROOM_ID));
-            await Assert.ThrowsAsync<KeyNotFoundException>(() => UserStates.GetForUse(USER_ID));
+            await Assert.ThrowsAsync<KeyNotFoundException>(async () => await Rooms.GetForUse(ROOM_ID));
+            await Assert.ThrowsAsync<KeyNotFoundException>(async () => await UserStates.GetForUse(USER_ID));
         }
 
         [Fact]
         public async Task UserJoinPreJoinFailureCleansUpRoom()
         {
             Database.Setup(db => db.MarkRoomActiveAsync(It.IsAny<MultiplayerRoom>()))
-                    .ThrowsAsync(new Exception("error"));
+                    .Throws(new Exception("error"));
 
             await Assert.ThrowsAnyAsync<Exception>(() => Hub.JoinRoom(ROOM_ID));
 
-            await Assert.ThrowsAsync<KeyNotFoundException>(() => Rooms.GetForUse(ROOM_ID));
-            await Assert.ThrowsAsync<KeyNotFoundException>(() => UserStates.GetForUse(USER_ID));
+            await Assert.ThrowsAsync<KeyNotFoundException>(async () => await Rooms.GetForUse(ROOM_ID));
+            await Assert.ThrowsAsync<KeyNotFoundException>(async () => await UserStates.GetForUse(USER_ID));
         }
 
         [Fact]
         public async Task UserJoinPostJoinFailureCleansUpRoomAndUser()
         {
             Database.Setup(db => db.AddRoomParticipantAsync(It.IsAny<MultiplayerRoom>(), It.IsAny<MultiplayerRoomUser>()))
-                    .ThrowsAsync(new Exception("error"));
+                    .Throws(new Exception("error"));
 
             await Assert.ThrowsAnyAsync<Exception>(() => Hub.JoinRoom(ROOM_ID));
 
-            await Assert.ThrowsAsync<KeyNotFoundException>(() => Rooms.GetForUse(ROOM_ID));
-            await Assert.ThrowsAsync<KeyNotFoundException>(() => UserStates.GetForUse(USER_ID));
+            await Assert.ThrowsAsync<KeyNotFoundException>(async () => await Rooms.GetForUse(ROOM_ID));
+            await Assert.ThrowsAsync<KeyNotFoundException>(async () => await UserStates.GetForUse(USER_ID));
         }
     }
 }

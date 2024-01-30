@@ -20,7 +20,7 @@ namespace osu.Server.Spectator.Database
     {
         private MySqlConnection? openConnection;
 
-        public async Task<int?> GetUserIdFromTokenAsync(JsonWebToken jwtToken)
+        public async ValueTask<int?> GetUserIdFromTokenAsync(JsonWebToken jwtToken)
         {
             var connection = await getConnectionAsync();
 
@@ -28,7 +28,7 @@ namespace osu.Server.Spectator.Database
                 new { id = jwtToken.Id });
         }
 
-        public async Task<string?> GetUsernameAsync(int userId)
+        public async ValueTask<string?> GetUsernameAsync(int userId)
         {
             var connection = await getConnectionAsync();
 
@@ -38,7 +38,7 @@ namespace osu.Server.Spectator.Database
             });
         }
 
-        public async Task<bool> IsUserRestrictedAsync(int userId)
+        public async ValueTask<bool> IsUserRestrictedAsync(int userId)
         {
             var connection = await getConnectionAsync();
 
@@ -48,7 +48,7 @@ namespace osu.Server.Spectator.Database
             }) != 0;
         }
 
-        public async Task<multiplayer_room?> GetRoomAsync(long roomId)
+        public async ValueTask<multiplayer_room?> GetRoomAsync(long roomId)
         {
             var connection = await getConnectionAsync();
 
@@ -58,7 +58,7 @@ namespace osu.Server.Spectator.Database
             });
         }
 
-        public async Task<database_beatmap?> GetBeatmapAsync(int beatmapId)
+        public async ValueTask<database_beatmap?> GetBeatmapAsync(int beatmapId)
         {
             var connection = await getConnectionAsync();
 
@@ -68,7 +68,7 @@ namespace osu.Server.Spectator.Database
             });
         }
 
-        public async Task MarkRoomActiveAsync(MultiplayerRoom room)
+        public async ValueTask MarkRoomActiveAsync(MultiplayerRoom room)
         {
             var connection = await getConnectionAsync();
 
@@ -78,7 +78,7 @@ namespace osu.Server.Spectator.Database
             });
         }
 
-        public async Task UpdateRoomSettingsAsync(MultiplayerRoom room)
+        public async ValueTask UpdateRoomSettingsAsync(MultiplayerRoom room)
         {
             var connection = await getConnectionAsync();
 
@@ -93,7 +93,7 @@ namespace osu.Server.Spectator.Database
             });
         }
 
-        public async Task UpdateRoomHostAsync(MultiplayerRoom room)
+        public async ValueTask UpdateRoomHostAsync(MultiplayerRoom room)
         {
             var connection = await getConnectionAsync();
 
@@ -113,7 +113,7 @@ namespace osu.Server.Spectator.Database
             }
         }
 
-        public async Task AddRoomParticipantAsync(MultiplayerRoom room, MultiplayerRoomUser user)
+        public async ValueTask AddRoomParticipantAsync(MultiplayerRoom room, MultiplayerRoomUser user)
         {
             var connection = await getConnectionAsync();
 
@@ -143,7 +143,7 @@ namespace osu.Server.Spectator.Database
             }
         }
 
-        public async Task RemoveRoomParticipantAsync(MultiplayerRoom room, MultiplayerRoomUser user)
+        public async ValueTask RemoveRoomParticipantAsync(MultiplayerRoom room, MultiplayerRoomUser user)
         {
             var connection = await getConnectionAsync();
 
@@ -172,7 +172,7 @@ namespace osu.Server.Spectator.Database
             }
         }
 
-        public async Task<multiplayer_playlist_item> GetPlaylistItemAsync(long roomId, long playlistItemId)
+        public async ValueTask<multiplayer_playlist_item> GetPlaylistItemAsync(long roomId, long playlistItemId)
         {
             var connection = await getConnectionAsync();
 
@@ -183,7 +183,7 @@ namespace osu.Server.Spectator.Database
             });
         }
 
-        public async Task<long> AddPlaylistItemAsync(multiplayer_playlist_item item)
+        public async ValueTask<long> AddPlaylistItemAsync(multiplayer_playlist_item item)
         {
             var connection = await getConnectionAsync();
 
@@ -195,7 +195,7 @@ namespace osu.Server.Spectator.Database
             return await connection.QuerySingleAsync<long>("SELECT max(id) FROM multiplayer_playlist_items WHERE room_id = @room_id", item);
         }
 
-        public async Task UpdatePlaylistItemAsync(multiplayer_playlist_item item)
+        public async ValueTask UpdatePlaylistItemAsync(multiplayer_playlist_item item)
         {
             var connection = await getConnectionAsync();
 
@@ -210,7 +210,7 @@ namespace osu.Server.Spectator.Database
                 + " WHERE id = @id", item);
         }
 
-        public async Task RemovePlaylistItemAsync(long roomId, long playlistItemId)
+        public async ValueTask RemovePlaylistItemAsync(long roomId, long playlistItemId)
         {
             var connection = await getConnectionAsync();
 
@@ -221,7 +221,7 @@ namespace osu.Server.Spectator.Database
             });
         }
 
-        public async Task MarkPlaylistItemAsPlayedAsync(long roomId, long playlistItemId)
+        public async ValueTask MarkPlaylistItemAsPlayedAsync(long roomId, long playlistItemId)
         {
             var connection = await getConnectionAsync();
 
@@ -232,7 +232,7 @@ namespace osu.Server.Spectator.Database
             });
         }
 
-        public async Task EndMatchAsync(MultiplayerRoom room)
+        public async ValueTask EndMatchAsync(MultiplayerRoom room)
         {
             var connection = await getConnectionAsync();
 
@@ -257,14 +257,14 @@ namespace osu.Server.Spectator.Database
             });
         }
 
-        public async Task<multiplayer_playlist_item[]> GetAllPlaylistItemsAsync(long roomId)
+        public async ValueTask<multiplayer_playlist_item[]> GetAllPlaylistItemsAsync(long roomId)
         {
             var connection = await getConnectionAsync();
 
             return (await connection.QueryAsync<multiplayer_playlist_item>("SELECT * FROM multiplayer_playlist_items WHERE room_id = @RoomId", new { RoomId = roomId })).ToArray();
         }
 
-        public async Task<BeatmapUpdates> GetUpdatedBeatmapSets(int? lastQueueId, int limit = 50)
+        public async ValueTask<BeatmapUpdates> GetUpdatedBeatmapSets(int? lastQueueId, int limit = 50)
         {
             var connection = await getConnectionAsync();
 
@@ -284,7 +284,7 @@ namespace osu.Server.Spectator.Database
             return new BeatmapUpdates(Array.Empty<int>(), lastEntry?.queue_id ?? 0);
         }
 
-        public async Task MarkScoreHasReplay(Score score)
+        public async ValueTask MarkScoreHasReplay(Score score)
         {
             var connection = await getConnectionAsync();
 
@@ -294,7 +294,7 @@ namespace osu.Server.Spectator.Database
             });
         }
 
-        public async Task<SoloScore?> GetScoreFromToken(long token)
+        public async ValueTask<SoloScore?> GetScoreFromToken(long token)
         {
             var connection = await getConnectionAsync();
 
@@ -305,7 +305,7 @@ namespace osu.Server.Spectator.Database
                 });
         }
 
-        public async Task<bool> IsScoreProcessedAsync(long scoreId)
+        public async ValueTask<bool> IsScoreProcessedAsync(long scoreId)
         {
             var connection = await getConnectionAsync();
 
@@ -315,7 +315,7 @@ namespace osu.Server.Spectator.Database
             });
         }
 
-        public async Task<phpbb_zebra?> GetUserRelation(int userId, int zebraId)
+        public async ValueTask<phpbb_zebra?> GetUserRelation(int userId, int zebraId)
         {
             var connection = await getConnectionAsync();
 
@@ -326,7 +326,7 @@ namespace osu.Server.Spectator.Database
             });
         }
 
-        public async Task<bool> GetUserAllowsPMs(int userId)
+        public async ValueTask<bool> GetUserAllowsPMs(int userId)
         {
             var connection = await getConnectionAsync();
 
@@ -336,7 +336,7 @@ namespace osu.Server.Spectator.Database
             });
         }
 
-        public async Task<IEnumerable<osu_build>> GetAllMainLazerBuildsAsync()
+        public async ValueTask<IEnumerable<osu_build>> GetAllMainLazerBuildsAsync()
         {
             var connection = await getConnectionAsync();
 
@@ -346,7 +346,7 @@ namespace osu.Server.Spectator.Database
                 + "WHERE stream_id = 7 AND allow_bancho = 1");
         }
 
-        public async Task<IEnumerable<osu_build>> GetAllPlatformSpecificLazerBuildsAsync()
+        public async ValueTask<IEnumerable<osu_build>> GetAllPlatformSpecificLazerBuildsAsync()
         {
             var connection = await getConnectionAsync();
 
@@ -356,7 +356,7 @@ namespace osu.Server.Spectator.Database
                 + "WHERE `stream_id` IS NULL AND `version` LIKE '%-lazer-%' AND `allow_bancho` = 1");
         }
 
-        public async Task UpdateBuildUserCountAsync(osu_build build)
+        public async ValueTask UpdateBuildUserCountAsync(osu_build build)
         {
             var connection = await getConnectionAsync();
 
@@ -368,7 +368,7 @@ namespace osu.Server.Spectator.Database
             openConnection?.Dispose();
         }
 
-        private async Task<MySqlConnection> getConnectionAsync()
+        private async ValueTask<MySqlConnection> getConnectionAsync()
         {
             if (openConnection != null)
                 return openConnection;

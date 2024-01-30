@@ -163,7 +163,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer
         /// </summary>
         /// <param name="roomId">The proposed room ID.</param>
         /// <exception cref="InvalidStateException">If anything is wrong with this request.</exception>
-        private async Task<ServerMultiplayerRoom> retrieveRoom(long roomId)
+        private async ValueTask<ServerMultiplayerRoom> retrieveRoom(long roomId)
         {
             Log($"Retrieving room {roomId} from database");
 
@@ -206,7 +206,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer
         /// <summary>
         /// Marks a room active at the database, implying the host has joined and this server is now in control of the room's lifetime.
         /// </summary>
-        private async Task markRoomActive(ServerMultiplayerRoom room)
+        private async ValueTask markRoomActive(ServerMultiplayerRoom room)
         {
             Log(room, "Host marking room active");
 
@@ -675,7 +675,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer
         /// <param name="roomId">The databased room ID.</param>
         public static string GetGroupId(long roomId) => $"room:{roomId}";
 
-        private async Task updateDatabaseSettings(MultiplayerRoom room)
+        private async ValueTask updateDatabaseSettings(MultiplayerRoom room)
         {
             var playlistItem = room.Playlist.FirstOrDefault(item => item.ID == room.Settings.PlaylistItemId);
 
@@ -686,37 +686,37 @@ namespace osu.Server.Spectator.Hubs.Multiplayer
                 await db.UpdateRoomSettingsAsync(room);
         }
 
-        private async Task updateDatabaseHost(MultiplayerRoom room)
+        private async ValueTask updateDatabaseHost(MultiplayerRoom room)
         {
             using (var db = databaseFactory.GetInstance())
                 await db.UpdateRoomHostAsync(room);
         }
 
-        private async Task endDatabaseMatch(MultiplayerRoom room)
+        private async ValueTask endDatabaseMatch(MultiplayerRoom room)
         {
             using (var db = databaseFactory.GetInstance())
                 await db.EndMatchAsync(room);
         }
 
-        private async Task addDatabaseUser(MultiplayerRoom room, MultiplayerRoomUser user)
+        private async ValueTask addDatabaseUser(MultiplayerRoom room, MultiplayerRoomUser user)
         {
             using (var db = databaseFactory.GetInstance())
                 await db.AddRoomParticipantAsync(room, user);
         }
 
-        private async Task removeDatabaseUser(MultiplayerRoom room, MultiplayerRoomUser user)
+        private async ValueTask removeDatabaseUser(MultiplayerRoom room, MultiplayerRoomUser user)
         {
             using (var db = databaseFactory.GetInstance())
                 await db.RemoveRoomParticipantAsync(room, user);
         }
 
-        protected override async Task CleanUpState(MultiplayerClientState state)
+        protected override async ValueTask CleanUpState(MultiplayerClientState state)
         {
             await leaveRoom(state, true);
             await base.CleanUpState(state);
         }
 
-        private async Task setNewHost(MultiplayerRoom room, MultiplayerRoomUser newHost)
+        private async ValueTask setNewHost(MultiplayerRoom room, MultiplayerRoomUser newHost)
         {
             room.Host = newHost;
             await Clients.Group(GetGroupId(room.RoomID)).HostChanged(newHost.UserID);
@@ -727,7 +727,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer
         /// <summary>
         /// Should be called when user states change, to check whether the new overall room state can trigger a room-level state change.
         /// </summary>
-        private async Task updateRoomStateIfRequired(ServerMultiplayerRoom room)
+        private async ValueTask updateRoomStateIfRequired(ServerMultiplayerRoom room)
         {
             //check whether a room state change is required.
             switch (room.State)
@@ -863,7 +863,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer
         /// <summary>
         /// Retrieve the <see cref="MultiplayerRoom"/> for the local context user.
         /// </summary>
-        private async Task<ItemUsage<ServerMultiplayerRoom>> getLocalUserRoom(MultiplayerClientState? state)
+        private async ValueTask<ItemUsage<ServerMultiplayerRoom>> getLocalUserRoom(MultiplayerClientState? state)
         {
             if (state == null)
                 throw new NotJoinedRoomException();
@@ -873,13 +873,13 @@ namespace osu.Server.Spectator.Hubs.Multiplayer
             return await Rooms.GetForUse(roomId);
         }
 
-        private async Task leaveRoom(MultiplayerClientState state, bool wasKick)
+        private async ValueTask leaveRoom(MultiplayerClientState state, bool wasKick)
         {
             using (var roomUsage = await getLocalUserRoom(state))
                 await leaveRoom(state, roomUsage, wasKick);
         }
 
-        private async Task leaveRoom(MultiplayerClientState state, ItemUsage<ServerMultiplayerRoom> roomUsage, bool wasKick)
+        private async ValueTask leaveRoom(MultiplayerClientState state, ItemUsage<ServerMultiplayerRoom> roomUsage, bool wasKick)
         {
             var room = roomUsage.Item;
 
@@ -930,7 +930,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer
                 await Clients.Group(GetGroupId(room.RoomID)).UserLeft(user);
         }
 
-        internal Task<ItemUsage<ServerMultiplayerRoom>> GetRoom(long roomId) => Rooms.GetForUse(roomId);
+        internal ValueTask<ItemUsage<ServerMultiplayerRoom>> GetRoom(long roomId) => Rooms.GetForUse(roomId);
 
         protected void Log(ServerMultiplayerRoom room, string message, LogLevel logLevel = LogLevel.Verbose) => base.Log($"[room:{room.RoomID}] {message}", logLevel);
     }

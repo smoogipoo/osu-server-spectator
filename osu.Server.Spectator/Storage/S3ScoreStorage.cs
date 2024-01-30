@@ -12,7 +12,7 @@ namespace osu.Server.Spectator.Storage
 {
     public class S3ScoreStorage : IScoreStorage
     {
-        public async Task WriteAsync(Score score)
+        public async ValueTask WriteAsync(Score score)
         {
             using (var outStream = new MemoryStream())
             {

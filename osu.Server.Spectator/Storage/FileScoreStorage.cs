@@ -11,7 +11,7 @@ namespace osu.Server.Spectator.Storage
 {
     public class FileScoreStorage : IScoreStorage
     {
-        public Task WriteAsync(Score score)
+        public ValueTask WriteAsync(Score score)
         {
             var legacyEncoder = new LegacyScoreEncoder(score, null);
 
@@ -22,7 +22,7 @@ namespace osu.Server.Spectator.Storage
             using (var outStream = File.Create(Path.Combine(AppSettings.ReplaysPath, filename)))
                 legacyEncoder.Encode(outStream);
 
-            return Task.CompletedTask;
+            return ValueTask.CompletedTask;
         }
     }
 }
