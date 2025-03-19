@@ -33,7 +33,9 @@ namespace osu.Server.Spectator.Extensions
                                     .AddSingleton<BuildUserCountUpdater>()
                                     .AddSingleton<ChatFilters>()
                                     .AddSingleton<IDailyChallengeUpdater, DailyChallengeUpdater>()
-                                    .AddHostedService<IDailyChallengeUpdater>(ctx => ctx.GetRequiredService<IDailyChallengeUpdater>());
+                                    .AddSingleton<IUserPresenceBroadcaster, UserPresenceBroadcaster>()
+                                    .AddHostedService<IDailyChallengeUpdater>(ctx => ctx.GetRequiredService<IDailyChallengeUpdater>())
+                                    .AddHostedService<IUserPresenceBroadcaster>(ctx => ctx.GetRequiredService<IUserPresenceBroadcaster>());
         }
 
         /// <summary>

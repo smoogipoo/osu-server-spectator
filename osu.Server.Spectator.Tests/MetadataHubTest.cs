@@ -14,6 +14,8 @@ using osu.Server.Spectator.Database;
 using osu.Server.Spectator.Entities;
 using osu.Server.Spectator.Hubs.Metadata;
 using osu.Server.Spectator.Hubs.Spectator;
+using osu.Server.Spectator.Services;
+using osu.Server.Spectator.Tests.Utils;
 using Xunit;
 
 namespace osu.Server.Spectator.Tests
@@ -36,19 +38,13 @@ namespace osu.Server.Spectator.Tests
             userStates = new EntityStore<MetadataClientState>();
 
             mockDatabase = new Mock<IDatabaseAccess>();
-            var databaseFactory = new Mock<IDatabaseFactory>();
-            databaseFactory.Setup(factory => factory.GetInstance()).Returns(mockDatabase.Object);
-            var loggerFactoryMock = new Mock<ILoggerFactory>();
-            loggerFactoryMock.Setup(factory => factory.CreateLogger(It.IsAny<string>()))
-                             .Returns(new Mock<ILogger>().Object);
 
-            hub = new MetadataHub(
-                loggerFactoryMock.Object,
-                new MemoryCache(new MemoryCacheOptions()),
-                userStates,
-                databaseFactory.Object,
-                new Mock<IDailyChallengeUpdater>().Object,
-                new Mock<IScoreProcessedSubscriber>().Object);
+            var mockDatabaseFactory = new Mock<IDatabaseFactory>();
+            mockDatabaseFactory.Setup(factory => factory.GetInstance()).Returns(mockDatabase.Object);
+
+            var mockLoggerFactory = new Mock<ILoggerFactory>();
+            mockLoggerFactory.Setup(factory => factory.CreateLogger(It.IsAny<string>()))
+                             .Returns(new Mock<ILogger>().Object);
 
             mockWatchersGroup = new Mock<IMetadataClient>();
             mockCaller = new Mock<IMetadataClient>();
@@ -57,16 +53,30 @@ namespace osu.Server.Spectator.Tests
             mockClients = new Mock<IHubCallerClients<IMetadataClient>>();
             mockClients.Setup(clients => clients.Group(It.IsAny<string>()))
                        .Returns(new Mock<IMetadataClient>().Object);
-            mockClients.Setup(clients => clients.Group(MetadataHub.ONLINE_PRESENCE_WATCHERS_GROUP))
+            mockClients.Setup(clients => clients.Group(MetadataHub.USER_ACTIVITY_WATCHERS_GROUP))
                        .Returns(mockWatchersGroup.Object);
             mockClients.Setup(clients => clients.Caller)
                        .Returns(mockCaller.Object);
 
             mockUserContext = createUserContext(user_id);
 
-            hub.Context = mockUserContext.Object;
-            hub.Clients = mockClients.Object;
-            hub.Groups = mockGroupManager.Object;
+            var hubContext = new Mock<IHubContext<MetadataHub>>();
+            hubContext.Setup(ctx => ctx.Groups).Returns(mockGroupManager.Object);
+            hubContext.Setup(ctx => ctx.Clients).Returns(new HubClientsProxy<IMetadataClient>(mockClients.Object));
+
+            hub = new MetadataHub(
+                mockLoggerFactory.Object,
+                new MemoryCache(new MemoryCacheOptions()),
+                userStates,
+                mockDatabaseFactory.Object,
+                new Mock<IDailyChallengeUpdater>().Object,
+                new Mock<IScoreProcessedSubscriber>().Object,
+                new Mock<IUserPresenceBroadcaster>().Object)
+            {
+                Context = mockUserContext.Object,
+                Clients = mockClients.Object,
+                Groups = mockGroupManager.Object
+            };
         }
 
         [Fact]
@@ -215,14 +225,14 @@ namespace osu.Server.Spectator.Tests
 
             await hub.BeginWatchingUserPresence();
             mockGroupManager.Verify(
-                mgr => mgr.AddToGroupAsync(It.IsAny<string>(), MetadataHub.ONLINE_PRESENCE_WATCHERS_GROUP, It.IsAny<CancellationToken>()),
+                mgr => mgr.AddToGroupAsync(It.IsAny<string>(), MetadataHub.USER_ACTIVITY_WATCHERS_GROUP, It.IsAny<CancellationToken>()),
                 Times.Once);
             // verify that the caller got the initial data update.
             mockCaller.Verify(caller => caller.UserPresenceUpdated(It.IsAny<int>(), It.IsAny<UserPresence>()), Times.Exactly(2));
 
             await hub.EndWatchingUserPresence();
             mockGroupManager.Verify(
-                mgr => mgr.RemoveFromGroupAsync(It.IsAny<string>(), MetadataHub.ONLINE_PRESENCE_WATCHERS_GROUP, It.IsAny<CancellationToken>()),
+                mgr => mgr.RemoveFromGroupAsync(It.IsAny<string>(), MetadataHub.USER_ACTIVITY_WATCHERS_GROUP, It.IsAny<CancellationToken>()),
                 Times.Once);
         }
 
