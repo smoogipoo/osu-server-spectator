@@ -17,6 +17,7 @@ using osu.Server.Spectator.Database.Models;
 using osu.Server.Spectator.Entities;
 using osu.Server.Spectator.Hubs.Multiplayer;
 using osu.Server.Spectator.Services;
+using osu.Server.Spectator.Tests.Utils;
 
 namespace osu.Server.Spectator.Tests.Multiplayer
 {
@@ -106,9 +107,7 @@ namespace osu.Server.Spectator.Tests.Multiplayer
 
             var hubContext = new Mock<IHubContext<MultiplayerHub>>();
             hubContext.Setup(ctx => ctx.Groups).Returns(Groups.Object);
-            hubContext.Setup(ctx => ctx.Clients.Client(It.IsAny<string>())).Returns<string>(connectionId => (ISingleClientProxy)Clients.Object.Client(connectionId));
-            hubContext.Setup(ctx => ctx.Clients.Group(It.IsAny<string>())).Returns<string>(groupName => (ISingleClientProxy)Clients.Object.Group(groupName));
-            hubContext.Setup(ctx => ctx.Clients.All).Returns((ISingleClientProxy)Clients.Object.All);
+            hubContext.Setup(ctx => ctx.Clients).Returns(new HubClientsProxy<IMultiplayerClient>(Clients.Object));
 
             Groups.Setup(g => g.AddToGroupAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
                   .Callback<string, string, CancellationToken>((connectionId, groupId, _) =>
