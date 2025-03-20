@@ -2,6 +2,7 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.SignalR;
@@ -17,37 +18,38 @@ namespace osu.Server.Spectator.Services
         private readonly IHubContext<MetadataHub> metadataContext;
 
         private readonly ReaderWriterLockSlim updateLock = new ReaderWriterLockSlim();
-        private readonly ConcurrentDictionary<int, UserStatus> pendingStatusUpdates = new ConcurrentDictionary<int, UserStatus>();
-        private readonly ConcurrentDictionary<int, UserActivity?> pendingActivityUpdates = new ConcurrentDictionary<int, UserActivity?>();
+        private readonly ConcurrentDictionary<int, (UserPresence from, UserPresence to)> pendingUpdates = new ConcurrentDictionary<int, (UserPresence, UserPresence)>();
 
         public UserPresenceBroadcaster(IHubContext<MetadataHub> metadataContext)
         {
             this.metadataContext = metadataContext;
         }
 
-        public void BroadcastStatus(int userId, UserStatus status)
+        public void BroadcastChange(int userId, UserPresence from, UserPresence to)
         {
-            updateLock.EnterReadLock();
+            try
             {
-                pendingStatusUpdates[userId] = status;
-                if (status == UserStatus.Offline)
-                    pendingActivityUpdates.TryRemove(userId, out _);
+                updateLock.EnterReadLock();
+
+                from = pendingUpdates.GetValueOrDefault(userId, (from, to)).from;
+
+                if (from.Equals(to))
+                {
+                    pendingUpdates.TryRemove(userId, out _);
+                    return;
+                }
+
+                pendingUpdates[userId] = (from, to);
             }
-            updateLock.ExitReadLock();
+            finally
+            {
+                updateLock.ExitReadLock();
+            }
         }
 
-        public void BroadcastActivity(int userId, UserActivity? activity)
+        public Task Flush()
         {
-            updateLock.EnterReadLock();
-            {
-                pendingActivityUpdates[userId] = activity;
-            }
-            updateLock.ExitReadLock();
-        }
-
-        public Task ExecuteImmediately()
-        {
-            return ExecuteAsync(CancellationToken.None);
+            return broadcastUpdates(CancellationToken.None);
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -61,18 +63,28 @@ namespace osu.Server.Spectator.Services
 
         private async Task broadcastUpdates(CancellationToken stoppingToken)
         {
-            updateLock.EnterWriteLock();
+            try
             {
-                foreach ((int userId, UserStatus status) in pendingStatusUpdates)
-                    await metadataContext.Clients.All.SendCoreAsync(nameof(IMetadataClient.UserStatusUpdated), [userId, status], stoppingToken);
+                updateLock.EnterWriteLock();
 
-                foreach ((int userId, UserActivity? activity) in pendingActivityUpdates)
-                    await metadataContext.Clients.Group(MetadataHub.USER_ACTIVITY_WATCHERS_GROUP).SendCoreAsync(nameof(IMetadataClient.UserActivityUpdated), [userId, activity], stoppingToken);
+                foreach ((int userId, (UserPresence from, UserPresence to)) in pendingUpdates)
+                {
+                    if (from.Equals(to))
+                        continue;
 
-                pendingStatusUpdates.Clear();
-                pendingActivityUpdates.Clear();
+                    await metadataContext.Clients.Group(MetadataHub.USER_STATUS_WATCHERS_GROUP)
+                                         .SendCoreAsync(nameof(IMetadataClient.UserPresenceUpdated), [userId, new UserPresence { Status = to.Status }], stoppingToken);
+
+                    await metadataContext.Clients.Group(MetadataHub.USER_ACTIVITY_WATCHERS_GROUP)
+                                         .SendCoreAsync(nameof(IMetadataClient.UserPresenceUpdated), [userId, to], stoppingToken);
+                }
+
+                pendingUpdates.Clear();
             }
-            updateLock.ExitWriteLock();
+            finally
+            {
+                updateLock.ExitWriteLock();
+            }
         }
 
         public override void Dispose()

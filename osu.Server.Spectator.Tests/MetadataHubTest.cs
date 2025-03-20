@@ -32,11 +32,11 @@ namespace osu.Server.Spectator.Tests
         private readonly Mock<IGroupManager> mockGroupManager;
         private readonly Mock<IDatabaseAccess> mockDatabase;
         private readonly Mock<IHubCallerClients<IMetadataClient>> mockClients;
+        private readonly IUserPresenceBroadcaster presenceBroadcaster;
 
         public MetadataHubTest()
         {
             userStates = new EntityStore<MetadataClientState>();
-
             mockDatabase = new Mock<IDatabaseAccess>();
 
             var mockDatabaseFactory = new Mock<IDatabaseFactory>();
@@ -64,6 +64,8 @@ namespace osu.Server.Spectator.Tests
             hubContext.Setup(ctx => ctx.Groups).Returns(mockGroupManager.Object);
             hubContext.Setup(ctx => ctx.Clients).Returns(new HubClientsProxy<IMetadataClient>(mockClients.Object));
 
+            presenceBroadcaster = new UserPresenceBroadcaster(hubContext.Object);
+
             hub = new MetadataHub(
                 mockLoggerFactory.Object,
                 new MemoryCache(new MemoryCacheOptions()),
@@ -71,7 +73,7 @@ namespace osu.Server.Spectator.Tests
                 mockDatabaseFactory.Object,
                 new Mock<IDailyChallengeUpdater>().Object,
                 new Mock<IScoreProcessedSubscriber>().Object,
-                new Mock<IUserPresenceBroadcaster>().Object)
+                presenceBroadcaster)
             {
                 Context = mockUserContext.Object,
                 Clients = mockClients.Object,
@@ -98,6 +100,7 @@ namespace osu.Server.Spectator.Tests
                 Assert.IsType<UserActivity.ChoosingBeatmap>(usage.Item!.UserActivity);
             }
 
+            await presenceBroadcaster.Flush();
             mockWatchersGroup.Verify(client => client.UserPresenceUpdated(user_id, It.IsAny<UserPresence>()), Times.Exactly(2));
 
             await hub.UpdateStatus(UserStatus.DoNotDisturb);

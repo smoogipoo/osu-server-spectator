@@ -18,5 +18,16 @@ namespace osu.Server.Spectator.Hubs.Metadata
         {
             VersionHash = versionHash;
         }
+
+        public UserPresence GetStatus() => new UserPresence
+        {
+            Status = UserStatus
+        };
+
+        public UserPresence GetPresence() => new UserPresence
+        {
+            Status = UserStatus,
+            Activity = UserActivity
+        };
     }
 }
