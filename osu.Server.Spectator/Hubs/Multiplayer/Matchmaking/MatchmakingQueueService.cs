@@ -17,7 +17,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking
 {
     public class MatchmakingQueueService : BackgroundService, IMatchmakingQueueService
     {
-        private readonly MatchmakingQueue queue = new MatchmakingQueue(MatchmakingImplementation.MATCHMAKING_ROOM_SIZE);
+        private readonly MatchmakingQueue queue = new MatchmakingQueue();
 
         private readonly IHubContext<MultiplayerHub> hub;
         private readonly ISharedInterop sharedInterop;
