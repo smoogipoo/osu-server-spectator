@@ -9,15 +9,22 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking
     public interface IMatchmakingQueueService : IHostedService
     {
         /// <summary>
-        /// Adds or removes a user from the matchmaking queue, depending on their current queued status.
+        /// Whether the given user is in the matchmaking queue.
         /// </summary>
         /// <param name="connectionId">The user connection.</param>
-        Task AddOrRemoveFromQueueAsync(string connectionId);
+        Task<bool> IsInQueueAsync(string connectionId);
 
         /// <summary>
-        /// Definitively removes a user from the matchmaking queue.
+        /// Adds a user to the matchmaking queue.
         /// </summary>
-        /// <param name="connectionId">The user connection.</param>
+        /// <param name="connectionId">The user's connection.</param>
+        /// <param name="userId">The user's ID.</param>
+        Task AddToQueueAsync(string connectionId, int userId);
+
+        /// <summary>
+        /// Removes a user from the matchmaking queue.
+        /// </summary>
+        /// <param name="connectionId">The user's connection.</param>
         Task RemoveFromQueueAsync(string connectionId);
     }
 }

@@ -905,7 +905,16 @@ namespace osu.Server.Spectator.Hubs.Multiplayer
 
         protected void Log(ServerMultiplayerRoom room, string message, LogLevel logLevel = LogLevel.Information) => base.Log($"[room:{room.RoomID}] {message}", logLevel);
 
-        public Task ToggleMatchmakingQueue() => matchmakingQueueService.AddOrRemoveFromQueueAsync(Context.ConnectionId);
+        public async Task ToggleMatchmakingQueue()
+        {
+            using (await GetOrCreateLocalUserState())
+            {
+                if (await matchmakingQueueService.IsInQueueAsync(Context.ConnectionId))
+                    await matchmakingQueueService.RemoveFromQueueAsync(Context.ConnectionId);
+                else
+                    await matchmakingQueueService.AddToQueueAsync(Context.ConnectionId, Context.GetUserId());
+            }
+        }
 
         public async Task MatchmakingToggleSelection(long playlistItemId)
         {
