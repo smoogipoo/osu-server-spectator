@@ -588,7 +588,7 @@ namespace osu.Server.Spectator.Database
 
             var connection = await getConnectionAsync();
 
-            return await connection.QuerySingleAsync<float>($"SELECT `rank_score` FROM {statsTable} WHERE `user_id` = @userId", new
+            return await connection.QuerySingleOrDefaultAsync<float>($"SELECT `rank_score` FROM {statsTable} WHERE `user_id` = @userId", new
             {
                 userId = userId
             });
