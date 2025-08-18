@@ -18,6 +18,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking
     public class MatchmakingQueueService : BackgroundService, IMatchmakingQueueService
     {
         private readonly MatchmakingQueue queue = new MatchmakingQueue();
+        private readonly object queueLock = new object();
 
         private readonly IHubContext<MultiplayerHub> hub;
         private readonly ISharedInterop sharedInterop;
@@ -32,54 +33,44 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking
             this.databaseFactory = databaseFactory;
         }
 
-        public async Task<bool> IsInQueueAsync(string connectionId)
-        {
-            using (var context = await queue.GetContextAsync())
-                return context.IsInQueue(connectionId);
-        }
-
-        public async Task AddToQueueAsync(string connectionId, int userId)
+        public async Task AddToQueueAsync(MultiplayerClientState state)
         {
             int rank;
             using (var db = databaseFactory.GetInstance())
-                rank = (int)await db.GetUserPP(userId, 0);
+                rank = (int)await db.GetUserPP(state.UserId, 0);
 
-            using (var context = await queue.GetContextAsync())
-            {
-                if (!context.AddToQueue(connectionId, rank))
-                    return;
-            }
+            lock (queueLock)
+                queue.AddToQueue(state.ConnectionId, rank);
 
-            await hub.Clients.Client(connectionId).SendAsync(nameof(IMultiplayerClient.MatchmakingQueueStatusChanged), new MatchmakingQueueStatus.InQueue
+            await hub.Clients.Client(state.ConnectionId).SendAsync(nameof(IMultiplayerClient.MatchmakingQueueStatusChanged), new MatchmakingQueueStatus.InQueue
             {
                 RoomSize = MatchmakingImplementation.MATCHMAKING_ROOM_SIZE,
                 PlayerCount = 1
             });
         }
 
-        public async Task RemoveFromQueueAsync(string connectionId)
+        public async Task RemoveFromQueueAsync(MultiplayerClientState state)
         {
-            using (var context = await queue.GetContextAsync())
-            {
-                if (!context.RemoveFromQueue(connectionId))
-                    return;
-            }
+            lock (queueLock)
+                queue.RemoveFromQueue(state.ConnectionId);
 
-            await hub.Clients.Client(connectionId).SendAsync(nameof(IMultiplayerClient.MatchmakingQueueStatusChanged), null);
+            await hub.Clients.Client(state.ConnectionId).SendAsync(nameof(IMultiplayerClient.MatchmakingQueueStatusChanged), null);
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
             while (!stoppingToken.IsCancellationRequested)
             {
-                using (var context = await queue.GetContextAsync())
-                {
-                    foreach (string[] playerList in context.Update())
-                        await makeRoomAsync(playerList);
-                }
+                string[][] playerLists;
 
-                await Task.Delay(5000, stoppingToken);
+                lock (queueLock)
+                    playerLists = queue.Update().ToArray();
+
+                foreach (string[] list in playerLists)
+                    await makeRoomAsync(list);
             }
+
+            await Task.Delay(5000, stoppingToken);
         }
 
         private async Task makeRoomAsync(string[] connectionIds)

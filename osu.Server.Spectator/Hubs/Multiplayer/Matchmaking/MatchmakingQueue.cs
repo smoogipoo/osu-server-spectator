@@ -4,8 +4,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking
 {
@@ -27,39 +25,26 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking
         public Func<int, int> SearchExpansion { get; set; } = it => (int)Math.Round(2000 * Math.Log(1 + 0.2 * it));
 
         /// <summary>
-        /// Lock for <see cref="queue"/>.
-        /// </summary>
-        private readonly SemaphoreSlim queueLock = new SemaphoreSlim(1, 1);
-
-        /// <summary>
         /// The queue.
         /// </summary>
         private readonly HashSet<QueueUser> queue = new HashSet<QueueUser>();
 
-        /// <summary>
-        /// Retrieves a context for performing operations on the queue.
-        /// </summary>
-        public Task<MatchmakingQueueContext> GetContextAsync()
-        {
-            return MatchmakingQueueContext.Create(this);
-        }
-
-        bool IMatchmakingQueue.IsInQueue(string identifier)
+        public bool IsInQueue(string identifier)
         {
             return queue.Contains(new QueueUser(identifier));
         }
 
-        bool IMatchmakingQueue.AddToQueue(string identifier, int rank)
+        public bool AddToQueue(string identifier, int rank)
         {
             return queue.Add(new QueueUser(identifier, rank));
         }
 
-        bool IMatchmakingQueue.RemoveFromQueue(string identifier)
+        public bool RemoveFromQueue(string identifier)
         {
             return queue.Remove(new QueueUser(identifier));
         }
 
-        IEnumerable<string[]> IMatchmakingQueue.Update()
+        public IEnumerable<string[]> Update()
         {
             if (queue.Count < RoomSize)
                 yield break;
@@ -125,29 +110,6 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking
             // Increment the search iteration for all remaining users.
             foreach (var user in queue)
                 user.SearchIteration++;
-        }
-
-        public class MatchmakingQueueContext : IMatchmakingQueue, IDisposable
-        {
-            private readonly IMatchmakingQueue queue;
-
-            private MatchmakingQueueContext(IMatchmakingQueue queue)
-            {
-                this.queue = queue;
-            }
-
-            public static async Task<MatchmakingQueueContext> Create(MatchmakingQueue queue)
-            {
-                await queue.queueLock.WaitAsync(TimeSpan.FromSeconds(10));
-                return new MatchmakingQueueContext(queue);
-            }
-
-            public bool IsInQueue(string identifier) => queue.IsInQueue(identifier);
-            public bool AddToQueue(string identifier, int rank) => queue.AddToQueue(identifier, rank);
-            public bool RemoveFromQueue(string identifier) => queue.RemoveFromQueue(identifier);
-            public IEnumerable<string[]> Update() => queue.Update();
-
-            public void Dispose() => ((MatchmakingQueue)queue).queueLock.Release();
         }
 
         private class UserBucket

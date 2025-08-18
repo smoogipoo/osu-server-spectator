@@ -780,7 +780,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer
         protected override async Task CleanUpState(MultiplayerClientState state)
         {
             await base.CleanUpState(state);
-            await matchmakingQueueService.RemoveFromQueueAsync(state.ConnectionId);
+            await matchmakingQueueService.RemoveFromQueueAsync(state);
             await leaveRoom(state, true);
         }
 
@@ -907,12 +907,23 @@ namespace osu.Server.Spectator.Hubs.Multiplayer
 
         public async Task ToggleMatchmakingQueue()
         {
-            using (await GetOrCreateLocalUserState())
+            using (var userUsage = await GetOrCreateLocalUserState())
             {
-                if (await matchmakingQueueService.IsInQueueAsync(Context.ConnectionId))
-                    await matchmakingQueueService.RemoveFromQueueAsync(Context.ConnectionId);
+                var user = userUsage.Item;
+
+                if (user == null)
+                    return;
+
+                if (user.InMatchmakingQueue)
+                {
+                    await matchmakingQueueService.RemoveFromQueueAsync(user);
+                    user.InMatchmakingQueue = false;
+                }
                 else
-                    await matchmakingQueueService.AddToQueueAsync(Context.ConnectionId, Context.GetUserId());
+                {
+                    await matchmakingQueueService.AddToQueueAsync(user);
+                    user.InMatchmakingQueue = true;
+                }
             }
         }
 
