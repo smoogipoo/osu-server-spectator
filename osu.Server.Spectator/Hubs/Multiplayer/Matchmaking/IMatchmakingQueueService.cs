@@ -11,11 +11,21 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking
         /// <summary>
         /// Adds a user to the matchmaking queue.
         /// </summary>
-        Task AddToQueueAsync(MultiplayerClientState state);
+        Task<bool> AddToQueueAsync(MultiplayerClientState state);
 
         /// <summary>
         /// Removes a user from the matchmaking queue.
         /// </summary>
         Task RemoveFromQueueAsync(MultiplayerClientState state);
+
+        /// <summary>
+        /// User accepts an invitation.
+        /// </summary>
+        Task AcceptInvitationAsync(MultiplayerClientState state);
+
+        /// <summary>
+        /// User declines an invitation.
+        /// </summary>
+        Task DeclineInvitationAsync(MultiplayerClientState state);
     }
 }

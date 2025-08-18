@@ -913,16 +913,26 @@ namespace osu.Server.Spectator.Hubs.Multiplayer
 
                 var user = userUsage.Item;
 
-                if (user.InMatchmakingQueue)
-                {
+                if (!await matchmakingQueueService.AddToQueueAsync(user))
                     await matchmakingQueueService.RemoveFromQueueAsync(user);
-                    user.InMatchmakingQueue = false;
-                }
-                else
-                {
-                    await matchmakingQueueService.AddToQueueAsync(user);
-                    user.InMatchmakingQueue = true;
-                }
+            }
+        }
+
+        public async Task MatchmakingAcceptInvitation()
+        {
+            using (var userUsage = await GetOrCreateLocalUserState())
+            {
+                userUsage.Item ??= new MultiplayerClientState(Context.ConnectionId, Context.GetUserId());
+                await matchmakingQueueService.AcceptInvitationAsync(userUsage.Item);
+            }
+        }
+
+        public async Task MatchmakingDeclineInvitation()
+        {
+            using (var userUsage = await GetOrCreateLocalUserState())
+            {
+                userUsage.Item ??= new MultiplayerClientState(Context.ConnectionId, Context.GetUserId());
+                await matchmakingQueueService.DeclineInvitationAsync(userUsage.Item);
             }
         }
 

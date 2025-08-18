@@ -11,11 +11,6 @@ namespace osu.Server.Spectator.Hubs.Multiplayer
     {
         public long? CurrentRoomID { get; set; }
 
-        /// <summary>
-        /// Whether the user is currently queued for matchmaking.
-        /// </summary>
-        public bool InMatchmakingQueue { get; set; }
-
         [JsonConstructor]
         public MultiplayerClientState(in string connectionId, in int userId)
             : base(connectionId, userId)
