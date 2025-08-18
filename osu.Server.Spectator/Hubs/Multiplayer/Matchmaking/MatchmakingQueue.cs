@@ -61,48 +61,39 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking
 
         IEnumerable<string[]> IMatchmakingQueue.Update()
         {
-            // Todo: This lock may be a bit too global.
             if (queue.Count < RoomSize)
                 yield break;
 
-            UserBucket?[] buckets = new UserBucket?[0];
-            int minRank = int.MaxValue;
-            int maxRank = int.MinValue;
+            // Mapping of rank -> bucket.
+            Dictionary<int, UserBucket> bucketsByRank = new Dictionary<int, UserBucket>();
 
-            // Add users in buckets formed by their expanded rank.
-            // A user with rank 10000 may be present in multiple buckets [ 8000, 9000, 10000, 11000, 12000 ].
+            // Mapping of user -> buckets in which the user is present.
+            Dictionary<QueueUser, List<UserBucket>> bucketsByUser = new Dictionary<QueueUser, List<UserBucket>>();
 
+            // Add users in buckets formed by their expanded rank. Users may be added to multiple buckets.
             foreach (var user in queue)
             {
                 int expansion = SearchExpansion(user.Rank);
 
-                minRank = Math.Min(minRank, user.Rank - expansion);
-                maxRank = Math.Max(maxRank, user.Rank + expansion);
+                int minRank = (int)Math.Floor(Math.Max(0, user.Rank - expansion) / (double)SearchWidth) * SearchWidth;
+                int maxRank = (int)Math.Ceiling(user.Rank + expansion / (double)SearchWidth) * SearchWidth;
 
-                int minBucket = (int)Math.Floor((double)minRank / SearchWidth);
-                int maxBucket = (int)Math.Ceiling((double)maxRank / SearchWidth);
-
-                minBucket = Math.Max(0, minBucket);
-                maxBucket = Math.Min(100, maxBucket);
-
-                Array.Resize(ref buckets, maxBucket + 1);
-
-                for (int b = minBucket; b <= maxBucket; b++)
+                for (int rank = minRank; rank <= maxRank; rank += SearchWidth)
                 {
-                    buckets[b] ??= new UserBucket();
-                    buckets[b]!.Users.Add(user);
-                    buckets[b]!.SearchIteration += user.SearchIteration;
+                    if (!bucketsByRank.TryGetValue(rank, out UserBucket? bucket))
+                        bucketsByRank[rank] = bucket = new UserBucket();
+                    if (!bucketsByUser.TryGetValue(user, out List<UserBucket>? userBuckets))
+                        bucketsByUser[user] = userBuckets = new List<UserBucket>();
+
+                    bucket.Users.Add(user);
+                    userBuckets.Add(bucket);
                 }
             }
 
-            // Sort buckets by their users' aggregate search iteration.
-            // This will bring users who've been waiting the longest to the front of the search.
+            // Sort buckets by their search iteration, bringing those containing users who've been waiting the longest to the front of the search.
+            UserBucket?[] bucketsByPriority = bucketsByRank.Values.OrderByDescending(b => b.Users.Select(u => u.SearchIteration).DefaultIfEmpty(0).Max()).ToArray();
 
-            UserBucket?[] bucketsByPriority = buckets.ToArray();
-            Array.Sort(bucketsByPriority);
-
-            // Go through each bucket and attempt to fulfill the search.
-
+            // Attempt to fulfill the search for each bucket.
             foreach (var bucket in bucketsByPriority)
             {
                 if (bucket == null)
@@ -110,27 +101,28 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking
 
                 while (bucket.Users.Count >= RoomSize)
                 {
-                    // Sort users by their search iteration.
-                    // This will bring those who've been waiting the longest to the front of the search.
+                    // Sort users by their search iteration, bringing those who've been waiting the longest to the front of the search.
+                    QueueUser[] usersByPriority = bucket.Users.OrderByDescending(u => u.SearchIteration).ToArray();
+                    string[] userIdentifiers = new string[RoomSize];
 
-                    QueueUser[] usersByPriority = bucket.Users.ToArray();
-                    Array.Sort(usersByPriority);
-
-                    // Build the list of matching users.
-
-                    string[] identifiers = new string[RoomSize];
-
+                    // Collect users, removing them from their respective buckets and the queue as a whole.
                     for (int i = 0; i < RoomSize; i++)
                     {
-                        identifiers[i] = usersByPriority[i].Identifier;
-                        bucket.Users.Remove(usersByPriority[i]);
-                        queue.Remove(usersByPriority[i]);
+                        QueueUser user = usersByPriority[i];
+
+                        userIdentifiers[i] = user.Identifier;
+
+                        foreach (var b in bucketsByUser[user])
+                            b.Users.Remove(user);
+
+                        queue.Remove(user);
                     }
 
-                    yield return identifiers;
+                    yield return userIdentifiers;
                 }
             }
 
+            // Increment the search iteration for all remaining users.
             foreach (var user in queue)
                 user.SearchIteration++;
         }
@@ -158,23 +150,16 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking
             public void Dispose() => ((MatchmakingQueue)queue).queueLock.Release();
         }
 
-        private class UserBucket : IComparable<UserBucket>
+        private class UserBucket
         {
-            public int SearchIteration { get; set; }
-
             public readonly HashSet<QueueUser> Users = new HashSet<QueueUser>();
-
-            public int CompareTo(UserBucket? other)
-            {
-                ArgumentNullException.ThrowIfNull(other);
-
-                // This appears earlier in the list if it has an older search iteration than the other.
-                return other.SearchIteration.CompareTo(SearchIteration);
-            }
         }
 
-        private class QueueUser : IEquatable<QueueUser>, IComparable<QueueUser>
+        private class QueueUser : IEquatable<QueueUser>
         {
+            /// <summary>
+            /// The amount of search iterations this user has been waiting for.
+            /// </summary>
             public int SearchIteration { get; set; }
 
             public readonly string Identifier;
@@ -198,14 +183,6 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking
                 => obj is QueueUser other && Equals(other);
 
             public override int GetHashCode() => Identifier.GetHashCode();
-
-            public int CompareTo(QueueUser? other)
-            {
-                ArgumentNullException.ThrowIfNull(other);
-
-                // This appears earlier in the list if it has an older search iteration than the other.
-                return other.SearchIteration.CompareTo(SearchIteration);
-            }
         }
     }
 }
