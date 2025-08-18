@@ -68,9 +68,9 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking
 
                 foreach (string[] list in playerLists)
                     await makeRoomAsync(list);
-            }
 
-            await Task.Delay(5000, stoppingToken);
+                await Task.Delay(5000, stoppingToken);
+            }
         }
 
         private async Task makeRoomAsync(string[] connectionIds)
