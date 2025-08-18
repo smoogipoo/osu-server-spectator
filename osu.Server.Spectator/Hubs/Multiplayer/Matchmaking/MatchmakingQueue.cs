@@ -58,10 +58,10 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking
             // Add users in buckets formed by their expanded rank. Users may be added to multiple buckets.
             foreach (var user in queue)
             {
-                int expansion = SearchExpansion(user.Rank);
+                int expansion = SearchExpansion(user.SearchIteration);
 
                 int minRank = (int)Math.Floor(Math.Max(0, user.Rank - expansion) / (double)SearchWidth) * SearchWidth;
-                int maxRank = (int)Math.Ceiling(user.Rank + expansion / (double)SearchWidth) * SearchWidth;
+                int maxRank = (int)Math.Ceiling((user.Rank + expansion) / (double)SearchWidth) * SearchWidth;
 
                 for (int rank = minRank; rank <= maxRank; rank += SearchWidth)
                 {
