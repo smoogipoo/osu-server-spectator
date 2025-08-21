@@ -47,6 +47,16 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.Queue
         }
 
         /// <summary>
+        /// Retrieves all users currently in the matchmaking queue.
+        /// </summary>
+        /// <returns></returns>
+        public MatchmakingQueueUser[] GetAllUsers()
+        {
+            lock (queueLock)
+                return matchmakingUsers.ToArray();
+        }
+
+        /// <summary>
         /// Adds a user to the matchmaking queue.
         /// </summary>
         /// <param name="user">The user to add.</param>

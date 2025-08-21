@@ -21,7 +21,14 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.Queue
         /// <summary>
         /// The rate at which the matchmaking queue is updated.
         /// </summary>
-        private static readonly TimeSpan update_rate = TimeSpan.FromSeconds(1);
+        private static readonly TimeSpan queue_update_rate = TimeSpan.FromSeconds(1);
+
+        /// <summary>
+        /// The rate at which actively searching users are sent periodic status updates.
+        /// </summary>
+        private static readonly TimeSpan periodic_update_rate = TimeSpan.FromSeconds(5);
+
+        private const string global_queued_users_group = "matchmaking-global-queued-users";
 
         private readonly MatchmakingQueue queue = new MatchmakingQueue();
 
@@ -29,6 +36,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.Queue
         private readonly ISharedInterop sharedInterop;
         private readonly IDatabaseFactory databaseFactory;
 
+        private int[] queuedUsersSample = [];
         private MultiplayerPlaylistItem[]? playlistItems;
 
         public MatchmakingQueueBackgroundService(IHubContext<MultiplayerHub> hub, ISharedInterop sharedInterop, IDatabaseFactory databaseFactory)
@@ -45,7 +53,10 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.Queue
 
         public async Task AddToQueueAsync(MultiplayerClientState state)
         {
-            MatchmakingQueueUser user = new MatchmakingQueueUser(state.ConnectionId);
+            MatchmakingQueueUser user = new MatchmakingQueueUser(state.ConnectionId)
+            {
+                UserId = state.UserId
+            };
 
             using (var db = databaseFactory.GetInstance())
                 user.Rank = (int)await db.GetUserPP(state.UserId, 0);
@@ -73,29 +84,52 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.Queue
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
+            DateTimeOffset lastPeriodicUpdateTime = DateTimeOffset.UnixEpoch;
+
             while (!stoppingToken.IsCancellationRequested)
             {
+                if (DateTimeOffset.Now - lastPeriodicUpdateTime > periodic_update_rate)
+                {
+                    await sendPeriodicUpdate();
+                    lastPeriodicUpdateTime = DateTimeOffset.Now;
+                }
+
                 await processBundle(queue.Update());
-
-                // Todo: We can notify all other users here of their expected time in the queue?
-
-                await Task.Delay(update_rate, stoppingToken);
+                await Task.Delay(queue_update_rate, stoppingToken);
             }
+        }
+
+        private async Task sendPeriodicUpdate()
+        {
+            MatchmakingQueueUser[] users = queue.GetAllUsers();
+            Random.Shared.Shuffle(users);
+            queuedUsersSample = users.Take(50).Select(u => u.UserId).ToArray();
+
+            await hub.Clients.Group(global_queued_users_group).SendAsync(nameof(IMultiplayerClient.MatchmakingQueueStatusChanged), new MatchmakingQueueStatus.Searching
+            {
+                UsersInQueue = queuedUsersSample
+            });
         }
 
         private async Task processBundle(MatchmakingQueueUpdateBundle bundle)
         {
             foreach (var user in bundle.RemovedUsers)
+            {
+                await hub.Groups.RemoveFromGroupAsync(user.Identifier, global_queued_users_group);
                 await hub.Clients.Client(user.Identifier).SendAsync(nameof(IMultiplayerClient.MatchmakingQueueLeft));
+            }
 
             foreach ((var user, bool rejoin) in bundle.AddedUsers)
             {
                 if (!rejoin)
+                {
+                    await hub.Groups.AddToGroupAsync(user.Identifier, global_queued_users_group);
                     await hub.Clients.Client(user.Identifier).SendAsync(nameof(IMultiplayerClient.MatchmakingQueueJoined));
+                }
 
                 await hub.Clients.Client(user.Identifier).SendAsync(nameof(IMultiplayerClient.MatchmakingQueueStatusChanged), new MatchmakingQueueStatus.Searching
                 {
-                    ReturnedToQueue = rejoin
+                    UsersInQueue = queuedUsersSample
                 });
             }
 
