@@ -125,11 +125,9 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.Queue
             foreach (var user in bundle.RemovedUsers)
                 await hub.Clients.Client(user.Identifier).SendAsync(nameof(IMultiplayerClient.MatchmakingQueueLeft));
 
-            foreach ((var user, bool rejoin) in bundle.AddedUsers)
+            foreach (var user in bundle.AddedUsers)
             {
-                if (!rejoin)
-                    await hub.Clients.Client(user.Identifier).SendAsync(nameof(IMultiplayerClient.MatchmakingQueueJoined));
-
+                await hub.Clients.Client(user.Identifier).SendAsync(nameof(IMultiplayerClient.MatchmakingQueueJoined));
                 await hub.Clients.Client(user.Identifier).SendAsync(nameof(IMultiplayerClient.MatchmakingQueueStatusChanged), new MatchmakingQueueStatus.Searching());
             }
 

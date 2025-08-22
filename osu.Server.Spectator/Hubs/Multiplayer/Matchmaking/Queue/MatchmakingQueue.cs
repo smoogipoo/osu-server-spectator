@@ -67,7 +67,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.Queue
             lock (queueLock)
             {
                 if (matchmakingUsers.Add(user))
-                    bundle.AddedUsers.Add((user, false));
+                    bundle.AddedUsers.Add(user);
             }
 
             return bundle;
@@ -213,7 +213,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.Queue
                         user.Group = null;
                         user.InviteAccepted = false;
 
-                        bundle.AddedUsers.Add((user, true));
+                        bundle.AddedUsers.Add(user);
                     }
                 }
             }
