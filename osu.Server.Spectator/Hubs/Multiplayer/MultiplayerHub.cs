@@ -906,6 +906,24 @@ namespace osu.Server.Spectator.Hubs.Multiplayer
 
         protected void Log(ServerMultiplayerRoom room, string message, LogLevel logLevel = LogLevel.Information) => base.Log($"[room:{room.RoomID}] {message}", logLevel);
 
+        public async Task JoinMatchmakingLobby()
+        {
+            using (var userUsage = await GetOrCreateLocalUserState())
+            {
+                userUsage.Item ??= new MultiplayerClientState(Context.ConnectionId, Context.GetUserId());
+                await matchmakingQueueService.AddToLobbyAsync(userUsage.Item);
+            }
+        }
+
+        public async Task LeaveMatchmakingLobby()
+        {
+            using (var userUsage = await GetOrCreateLocalUserState())
+            {
+                userUsage.Item ??= new MultiplayerClientState(Context.ConnectionId, Context.GetUserId());
+                await matchmakingQueueService.RemoveFromLobbyAsync(userUsage.Item);
+            }
+        }
+
         public async Task JoinMatchmakingQueue()
         {
             using (var userUsage = await GetOrCreateLocalUserState())
