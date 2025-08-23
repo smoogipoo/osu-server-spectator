@@ -147,6 +147,18 @@ namespace osu.Server.Spectator.Tests.Multiplayer
                 await c.PlaylistItemChanged(item);
         }
 
+        public virtual async Task LoungeRoomAdded(MultiplayerRoom room)
+        {
+            foreach (var c in Clients)
+                await c.LoungeRoomAdded(room);
+        }
+
+        public virtual async Task LoungeRoomRemoved(long roomId)
+        {
+            foreach (var c in Clients)
+                await c.LoungeRoomRemoved(roomId);
+        }
+
         public Task SendCoreAsync(string method, object?[] args, CancellationToken cancellationToken = new CancellationToken())
         {
             return (Task)GetType().GetMethod(method, BindingFlags.Instance | BindingFlags.Public)!.Invoke(this, args)!;

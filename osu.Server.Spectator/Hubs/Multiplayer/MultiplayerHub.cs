@@ -23,6 +23,8 @@ namespace osu.Server.Spectator.Hubs.Multiplayer
 {
     public class MultiplayerHub : StatefulUserHub<IMultiplayerClient, MultiplayerClientState>, IMultiplayerServer
     {
+        private const string lounge_watchers_group = "multiplayer-lounge-watchers";
+
         private static readonly MessagePackSerializerOptions message_pack_options = new MessagePackSerializerOptions(new SignalRUnionWorkaroundResolver());
 
         protected readonly EntityStore<ServerMultiplayerRoom> Rooms;
@@ -52,6 +54,32 @@ namespace osu.Server.Spectator.Hubs.Multiplayer
             HubContext = new MultiplayerHubContext(hubContext, rooms, users, loggerFactory, databaseFactory, multiplayerEventLogger);
         }
 
+        public async Task JoinLounge()
+        {
+            await Groups.AddToGroupAsync(Context.ConnectionId, lounge_watchers_group);
+
+            foreach ((long roomId, _) in Rooms.GetAllEntities())
+            {
+                byte[] roomBytes;
+
+                // We need to lock the room so that it's not modified while being serialised.
+                using (var roomUsage = await Rooms.GetForUse(roomId))
+                {
+                    if (roomUsage.Item == null)
+                        continue;
+
+                    roomBytes = MessagePackSerializer.Serialize<MultiplayerRoom>(roomUsage.Item, message_pack_options);
+                }
+
+                await Clients.Caller.LoungeRoomAdded(MessagePackSerializer.Deserialize<MultiplayerRoom>(roomBytes));
+            }
+        }
+
+        public async Task LeaveLounge()
+        {
+            await Groups.RemoveFromGroupAsync(Context.ConnectionId, lounge_watchers_group);
+        }
+
         public async Task<MultiplayerRoom> CreateRoom(MultiplayerRoom room)
         {
             Log($"{Context.GetUserId()} creating room");
@@ -76,6 +104,9 @@ namespace osu.Server.Spectator.Hubs.Multiplayer
 
             byte[] roomBytes;
 
+            // track whether this join necessitated starting the process of fetching the room and adding it to the room store.
+            bool newRoomFetchStarted = false;
+
             using (var userUsage = await GetOrCreateLocalUserState())
             {
                 if (userUsage.Item != null)
@@ -86,9 +117,6 @@ namespace osu.Server.Spectator.Hubs.Multiplayer
 
                 // add the user to the room.
                 var roomUser = new MultiplayerRoomUser(Context.GetUserId());
-
-                // track whether this join necessitated starting the process of fetching the room and adding it to the room store.
-                bool newRoomFetchStarted = false;
 
                 using (var roomUsage = await Rooms.GetForUse(roomId, true))
                 {
@@ -194,7 +222,12 @@ namespace osu.Server.Spectator.Hubs.Multiplayer
 
             await multiplayerEventLogger.LogPlayerJoinedAsync(roomId, Context.GetUserId());
 
-            return MessagePackSerializer.Deserialize<MultiplayerRoom>(roomBytes);
+            var resultRoom = MessagePackSerializer.Deserialize<MultiplayerRoom>(roomBytes);
+
+            if (newRoomFetchStarted)
+                await Clients.Group(lounge_watchers_group).LoungeRoomAdded(resultRoom);
+
+            return resultRoom;
         }
 
         /// <summary>
@@ -1005,6 +1038,8 @@ namespace osu.Server.Spectator.Hubs.Multiplayer
                 // only destroy the usage after the database operation succeeds.
                 Log(room, "Stopping tracking of room (all users left).");
                 roomUsage.Destroy();
+
+                await Clients.Group(lounge_watchers_group).LoungeRoomRemoved(room.RoomID);
                 return;
             }
 

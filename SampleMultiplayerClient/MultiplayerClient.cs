@@ -74,6 +74,16 @@ namespace SampleMultiplayerClient
         public async Task<MultiplayerRoom> JoinRoomWithPassword(long roomId, string? password = null)
             => Room = await connection.InvokeAsync<MultiplayerRoom>(nameof(IMultiplayerServer.JoinRoomWithPassword), roomId, password ?? string.Empty);
 
+        public Task JoinLounge()
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task LeaveLounge()
+        {
+            throw new NotImplementedException();
+        }
+
         public async Task LeaveRoom()
         {
             await connection.InvokeAsync(nameof(IMultiplayerServer.LeaveRoom));
@@ -271,6 +281,16 @@ namespace SampleMultiplayerClient
         {
             Console.WriteLine($"Playlist item changed (id: {item.ID} beatmap: {item.BeatmapID}, ruleset: {item.RulesetID})");
             return Task.CompletedTask;
+        }
+
+        public Task LoungeRoomAdded(MultiplayerRoom room)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task LoungeRoomRemoved(long roomId)
+        {
+            throw new NotImplementedException();
         }
 
         public async Task DisconnectRequested()
