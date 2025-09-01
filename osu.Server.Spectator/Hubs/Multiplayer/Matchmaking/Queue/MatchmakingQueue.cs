@@ -20,6 +20,11 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.Queue
         public TimeSpan InviteTimeout { get; set; } = TimeSpan.FromSeconds(30);
 
         /// <summary>
+        /// The ruleset ID for this queue.
+        /// </summary>
+        public int RulesetId { get; set; }
+
+        /// <summary>
         /// All users active in the matchmaking queue.
         /// </summary>
         private readonly HashSet<MatchmakingQueueUser> matchmakingUsers = new HashSet<MatchmakingQueueUser>();
@@ -62,7 +67,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.Queue
         /// <param name="user">The user to add.</param>
         public MatchmakingQueueUpdateBundle Add(MatchmakingQueueUser user)
         {
-            var bundle = new MatchmakingQueueUpdateBundle();
+            var bundle = new MatchmakingQueueUpdateBundle(this);
 
             lock (queueLock)
             {
@@ -79,7 +84,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.Queue
         /// <param name="user">The user to remove.</param>
         public MatchmakingQueueUpdateBundle Remove(MatchmakingQueueUser user)
         {
-            var bundle = new MatchmakingQueueUpdateBundle();
+            var bundle = new MatchmakingQueueUpdateBundle(this);
 
             lock (queueLock)
             {
@@ -99,7 +104,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.Queue
         /// <param name="user">The user to mark as having accepted their invitation.</param>
         public MatchmakingQueueUpdateBundle MarkInvitationAccepted(MatchmakingQueueUser user)
         {
-            var bundle = new MatchmakingQueueUpdateBundle();
+            var bundle = new MatchmakingQueueUpdateBundle(this);
 
             lock (queueLock)
             {
@@ -130,7 +135,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.Queue
         /// <param name="user">The user to mark as having declined their invitation.</param>
         public MatchmakingQueueUpdateBundle MarkInvitationDeclined(MatchmakingQueueUser user)
         {
-            var bundle = new MatchmakingQueueUpdateBundle();
+            var bundle = new MatchmakingQueueUpdateBundle(this);
 
             lock (queueLock)
             {
@@ -149,7 +154,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.Queue
         /// </summary>
         public MatchmakingQueueUpdateBundle Update()
         {
-            var bundle = new MatchmakingQueueUpdateBundle();
+            var bundle = new MatchmakingQueueUpdateBundle(this);
 
             lock (queueLock)
             {
@@ -190,7 +195,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.Queue
         /// <param name="users">The users to mark as having declined their invitation.</param>
         private MatchmakingQueueUpdateBundle markInvitationDeclined(IList<MatchmakingQueueUser> users)
         {
-            var bundle = new MatchmakingQueueUpdateBundle();
+            var bundle = new MatchmakingQueueUpdateBundle(this);
 
             lock (queueLock)
             {

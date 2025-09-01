@@ -11,6 +11,11 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.Queue
     public class MatchmakingQueueUpdateBundle
     {
         /// <summary>
+        /// The queue which was updated.
+        /// </summary>
+        public readonly MatchmakingQueue Queue;
+
+        /// <summary>
         /// Groups that were newly formed from users matching the search criteria.
         /// </summary>
         public readonly List<MatchmakingQueueGroup> FormedGroups = [];
@@ -29,6 +34,11 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.Queue
         /// Users that have left the queue.
         /// </summary>
         public readonly List<MatchmakingQueueUser> RemovedUsers = [];
+
+        public MatchmakingQueueUpdateBundle(MatchmakingQueue queue)
+        {
+            Queue = queue;
+        }
 
         public void Append(MatchmakingQueueUpdateBundle other)
         {
