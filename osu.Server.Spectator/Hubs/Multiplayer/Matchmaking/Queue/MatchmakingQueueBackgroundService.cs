@@ -13,7 +13,6 @@ using osu.Game.Online.Matchmaking;
 using osu.Game.Online.Multiplayer;
 using osu.Game.Online.Rooms;
 using osu.Server.Spectator.Database;
-using osu.Server.Spectator.Database.Models;
 using osu.Server.Spectator.Services;
 
 namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.Queue
@@ -83,7 +82,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.Queue
 
             MatchmakingQueue queue = queues.GetOrAdd(state.Settings, _ => new MatchmakingQueue
             {
-                RulesetId = state.Settings.RulesetId
+                RoomSettings = state.Settings
             });
 
             await processBundle(queue.Add(user));
@@ -165,7 +164,14 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.Queue
                 long roomId = await sharedInterop.CreateRoomAsync(AppSettings.BanchoBotUserId, new MultiplayerRoom(0)
                 {
                     Settings = { MatchType = MatchType.Matchmaking },
-                    Playlist = await queryPlaylistItems(bundle.Queue.RulesetId)
+                    // Rooms generally require one playlist item in order to be created.
+                    Playlist = { new MultiplayerPlaylistItem() }
+                });
+
+                await cache.GetOrCreateAsync(MatchmakingMatchController.RoomSettingsKey(roomId), e =>
+                {
+                    e.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(10);
+                    return Task.FromResult(bundle.Queue.RoomSettings);
                 });
 
                 await hub.Clients.Group(group.Identifier).SendAsync(nameof(IMultiplayerClient.MatchmakingRoomReady), roomId);
@@ -174,27 +180,5 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.Queue
                     await hub.Groups.RemoveFromGroupAsync(user.Identifier, group.Identifier);
             }
         }
-
-        private async Task<MultiplayerPlaylistItem[]> queryPlaylistItems(int rulesetId)
-        {
-            return (await cache.GetOrCreateAsync(playlistCacheKey(rulesetId), async _ =>
-                   {
-                       using (var db = databaseFactory.GetInstance())
-                       {
-                           database_beatmap[] beatmaps = await db.GetBeatmapsAsync(MatchmakingMatchController.BEATMAP_IDS[rulesetId]);
-                           return beatmaps.Select(b => new MultiplayerPlaylistItem
-                           {
-                               BeatmapID = b.beatmap_id,
-                               BeatmapChecksum = b.checksum!,
-                               RulesetID = rulesetId,
-                               StarRating = b.difficultyrating,
-                           }).ToArray();
-                       }
-                   }) ?? [])
-                   // Per-room isolation of playlist items.
-                   .Select(p => p.Clone()).ToArray();
-        }
-
-        private static string playlistCacheKey(int rulesetId) => $"matchmaking-playlist-{rulesetId}";
     }
 }

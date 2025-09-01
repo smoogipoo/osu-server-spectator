@@ -8,6 +8,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Caching.Memory;
 using osu.Game.Online.Multiplayer;
 using osu.Game.Online.Multiplayer.Countdown;
 using osu.Game.Online.Rooms;
@@ -27,13 +28,15 @@ namespace osu.Server.Spectator.Hubs.Multiplayer
 
         private readonly IMultiplayerHubContext hub;
         private readonly IDatabaseFactory dbFactory;
+        private readonly IMemoryCache cache;
         private IMatchController? matchController;
 
-        public ServerMultiplayerRoom(long roomId, IMultiplayerHubContext hub, IDatabaseFactory dbFactory)
+        public ServerMultiplayerRoom(long roomId, IMultiplayerHubContext hub, IDatabaseFactory dbFactory, IMemoryCache cache)
             : base(roomId)
         {
             this.hub = hub;
             this.dbFactory = dbFactory;
+            this.cache = cache;
         }
 
         public async Task Initialise()
@@ -69,7 +72,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer
             switch (type)
             {
                 case MatchType.Matchmaking:
-                    return ChangeMatchType(new MatchmakingMatchController(this, hub, dbFactory));
+                    return ChangeMatchType(new MatchmakingMatchController(this, hub, dbFactory, cache));
 
                 case MatchType.TeamVersus:
                     return ChangeMatchType(new TeamVersusMatchController(this, hub, dbFactory));

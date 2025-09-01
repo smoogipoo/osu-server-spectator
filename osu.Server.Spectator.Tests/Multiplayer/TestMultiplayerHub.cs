@@ -2,6 +2,7 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using osu.Server.Spectator.Database;
 using osu.Server.Spectator.Entities;
@@ -23,7 +24,7 @@ namespace osu.Server.Spectator.Tests.Multiplayer
             IHubContext<MultiplayerHub> hubContext,
             ISharedInterop sharedInterop,
             MultiplayerEventLogger multiplayerEventLogger)
-            : base(loggerFactory, rooms, users, databaseFactory, chatFilters, hubContext, sharedInterop, multiplayerEventLogger, null)
+            : base(loggerFactory, rooms, users, databaseFactory, chatFilters, hubContext, sharedInterop, multiplayerEventLogger, null, new MemoryCache(new MemoryCacheOptions()))
         {
         }
 

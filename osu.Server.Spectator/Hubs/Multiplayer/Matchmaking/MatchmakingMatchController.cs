@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.Caching.Memory;
 using osu.Game.Online.Matchmaking;
 using osu.Game.Online.Multiplayer;
 using osu.Game.Online.Multiplayer.MatchTypes.Matchmaking;
@@ -80,21 +81,39 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking
         private readonly ServerMultiplayerRoom room;
         private readonly IMultiplayerHubContext hub;
         private readonly IDatabaseFactory dbFactory;
+        private readonly IMemoryCache cache;
         private readonly MatchmakingRoomState state;
+        private readonly MatchmakingSettings settings;
         private readonly Dictionary<int, long> userPicks = new Dictionary<int, long>();
 
-        public MatchmakingMatchController(ServerMultiplayerRoom room, IMultiplayerHubContext hub, IDatabaseFactory dbFactory)
+        public MatchmakingMatchController(ServerMultiplayerRoom room, IMultiplayerHubContext hub, IDatabaseFactory dbFactory, IMemoryCache cache)
         {
             this.room = room;
             this.hub = hub;
             this.dbFactory = dbFactory;
+            this.cache = cache;
 
             room.MatchState = state = new MatchmakingRoomState();
             room.Settings.PlaylistItemId = room.Playlist[0].ID;
+
+            settings = cache.Get<MatchmakingSettings>(RoomSettingsKey(room.RoomID)) ?? throw new InvalidOperationException("Room retrieval timed out.");
         }
 
         public async Task Initialise()
         {
+            using (var db = dbFactory.GetInstance())
+            {
+                database_beatmap[] beatmaps = await db.GetBeatmapsAsync(BEATMAP_IDS[settings.RulesetId]);
+
+                state.Playlist = beatmaps.Select(b => new MultiplayerPlaylistItem
+                {
+                    BeatmapID = b.beatmap_id,
+                    BeatmapChecksum = b.checksum!,
+                    RulesetID = settings.RulesetId,
+                    StarRating = b.difficultyrating,
+                }).ToArray();
+            }
+
             await hub.NotifyMatchRoomStateChanged(room);
         }
 
@@ -342,5 +361,9 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking
         {
             room_type = database_match_type.matchmaking
         };
+
+        public static string RoomSettingsKey(long roomId) => $"matchmaking-room-settings-{roomId}";
+
+        private static string playlistCacheKey(int rulesetId) => $"matchmaking-playlist-{rulesetId}";
     }
 }

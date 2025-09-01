@@ -7,6 +7,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using MessagePack;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using osu.Game.Online;
 using osu.Game.Online.API;
@@ -35,6 +36,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer
         private readonly ISharedInterop sharedInterop;
         private readonly MultiplayerEventLogger multiplayerEventLogger;
         private readonly IMatchmakingQueueBackgroundService matchmakingQueueService;
+        private readonly IMemoryCache cache;
 
         public MultiplayerHub(
             ILoggerFactory loggerFactory,
@@ -45,7 +47,8 @@ namespace osu.Server.Spectator.Hubs.Multiplayer
             IHubContext<MultiplayerHub> hubContext,
             ISharedInterop sharedInterop,
             MultiplayerEventLogger multiplayerEventLogger,
-            IMatchmakingQueueBackgroundService matchmakingQueueService)
+            IMatchmakingQueueBackgroundService matchmakingQueueService,
+            IMemoryCache cache)
             : base(loggerFactory, users)
         {
             this.databaseFactory = databaseFactory;
@@ -53,6 +56,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer
             this.sharedInterop = sharedInterop;
             this.multiplayerEventLogger = multiplayerEventLogger;
             this.matchmakingQueueService = matchmakingQueueService;
+            this.cache = cache;
 
             Rooms = rooms;
             HubContext = new MultiplayerHubContext(hubContext, rooms, users, loggerFactory, databaseFactory, sharedInterop, multiplayerEventLogger);
@@ -232,7 +236,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer
                 if (databaseRoom.type != database_match_type.matchmaking && databaseRoom.user_id != Context.GetUserId())
                     throw new InvalidOperationException("Non-host is attempting to join match before host");
 
-                var room = new ServerMultiplayerRoom(roomId, HubContext, databaseFactory)
+                var room = new ServerMultiplayerRoom(roomId, HubContext, databaseFactory, cache)
                 {
                     ChannelID = databaseRoom.channel_id,
                     Settings = new MultiplayerRoomSettings

@@ -2,6 +2,7 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using System.Threading.Tasks;
+using Microsoft.Extensions.Caching.Memory;
 using Moq;
 using osu.Game.Online.Multiplayer;
 using osu.Game.Online.Multiplayer.MatchTypes.TeamVersus;
@@ -20,7 +21,7 @@ namespace osu.Server.Spectator.Tests.Multiplayer
         public async Task UserRequestsValidTeamChange(int team)
         {
             var hub = new Mock<IMultiplayerHubContext>();
-            var room = new ServerMultiplayerRoom(1, hub.Object, DatabaseFactory.Object)
+            var room = new ServerMultiplayerRoom(1, hub.Object, DatabaseFactory.Object, new MemoryCache(new MemoryCacheOptions()))
             {
                 Playlist =
                 {
@@ -56,7 +57,7 @@ namespace osu.Server.Spectator.Tests.Multiplayer
         public async Task UserRequestsInvalidTeamChange(int team)
         {
             var hub = new Mock<IMultiplayerHubContext>();
-            var room = new ServerMultiplayerRoom(1, hub.Object, DatabaseFactory.Object)
+            var room = new ServerMultiplayerRoom(1, hub.Object, DatabaseFactory.Object, new MemoryCache(new MemoryCacheOptions()))
             {
                 Playlist =
                 {
@@ -92,7 +93,7 @@ namespace osu.Server.Spectator.Tests.Multiplayer
         public async Task NewUsersAssignedToTeamWithFewerUsers()
         {
             var hub = new Mock<IMultiplayerHubContext>();
-            var room = new ServerMultiplayerRoom(1, hub.Object, DatabaseFactory.Object)
+            var room = new ServerMultiplayerRoom(1, hub.Object, DatabaseFactory.Object, new MemoryCache(new MemoryCacheOptions()))
             {
                 Playlist =
                 {
@@ -133,7 +134,7 @@ namespace osu.Server.Spectator.Tests.Multiplayer
         public async Task InitialUsersAssignedToTeamsEqually()
         {
             var hub = new Mock<IMultiplayerHubContext>();
-            var room = new ServerMultiplayerRoom(1, hub.Object, DatabaseFactory.Object)
+            var room = new ServerMultiplayerRoom(1, hub.Object, DatabaseFactory.Object, new MemoryCache(new MemoryCacheOptions()))
             {
                 Playlist =
                 {
@@ -164,7 +165,7 @@ namespace osu.Server.Spectator.Tests.Multiplayer
         public async Task StateMaintainedBetweenRulesetSwitch()
         {
             var hub = new Mock<IMultiplayerHubContext>();
-            var room = new ServerMultiplayerRoom(1, hub.Object, DatabaseFactory.Object)
+            var room = new ServerMultiplayerRoom(1, hub.Object, DatabaseFactory.Object, new MemoryCache(new MemoryCacheOptions()))
             {
                 Playlist =
                 {
