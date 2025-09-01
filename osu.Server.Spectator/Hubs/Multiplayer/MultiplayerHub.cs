@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
 using osu.Game.Online;
 using osu.Game.Online.API;
+using osu.Game.Online.Matchmaking;
 using osu.Game.Online.Multiplayer;
 using osu.Game.Online.Multiplayer.Countdown;
 using osu.Game.Online.Rooms;
@@ -906,10 +907,15 @@ namespace osu.Server.Spectator.Hubs.Multiplayer
                 await matchmakingQueueService.RemoveFromLobbyAsync(new MatchmakingClientState(Context));
         }
 
-        public async Task JoinMatchmakingQueue()
+        public async Task JoinMatchmakingQueue(MatchmakingSettings settings)
         {
             using (await GetOrCreateLocalUserState())
-                await matchmakingQueueService.AddToQueueAsync(new MatchmakingClientState(Context));
+            {
+                await matchmakingQueueService.AddToQueueAsync(new MatchmakingClientState(Context)
+                {
+                    Settings = settings
+                });
+            }
         }
 
         public async Task LeaveMatchmakingQueue()

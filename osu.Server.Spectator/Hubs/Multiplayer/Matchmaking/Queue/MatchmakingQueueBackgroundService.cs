@@ -2,6 +2,7 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
+using System.Collections.Concurrent;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -30,8 +31,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.Queue
 
         private const string lobby_users_group = "matchmaking-lobby-users";
 
-        private readonly MatchmakingQueue queue = new MatchmakingQueue();
-
+        private readonly ConcurrentDictionary<MatchmakingSettings, MatchmakingQueue> queues = new ConcurrentDictionary<MatchmakingSettings, MatchmakingQueue>();
         private readonly IHubContext<MultiplayerHub> hub;
         private readonly ISharedInterop sharedInterop;
         private readonly IDatabaseFactory databaseFactory;
@@ -49,7 +49,13 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.Queue
 
         public bool IsInQueue(MatchmakingClientState state)
         {
-            return queue.IsInQueue(new MatchmakingQueueUser(state.ConnectionId));
+            foreach ((_, MatchmakingQueue queue) in queues)
+            {
+                if (queue.IsInQueue(new MatchmakingQueueUser(state.ConnectionId)))
+                    return true;
+            }
+
+            return false;
         }
 
         public async Task AddToLobbyAsync(MatchmakingClientState state)
@@ -70,14 +76,16 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.Queue
             };
 
             using (var db = databaseFactory.GetInstance())
-                user.Rank = (int)await db.GetUserPPAsync(state.UserId, 0);
+                user.Rank = (int)await db.GetUserPPAsync(state.UserId, state.Settings.RulesetId);
 
+            MatchmakingQueue queue = queues.GetOrAdd(state.Settings, _ => new MatchmakingQueue());
             await processBundle(queue.Add(user));
         }
 
         public async Task RemoveFromQueueAsync(MatchmakingClientState state)
         {
-            await processBundle(queue.Remove(new MatchmakingQueueUser(state.ConnectionId)));
+            foreach ((_, MatchmakingQueue queue) in queues)
+                await processBundle(queue.Remove(new MatchmakingQueueUser(state.ConnectionId)));
         }
 
         public async Task AcceptInvitationAsync(MatchmakingClientState state)
@@ -85,12 +93,14 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.Queue
             // Immediately notify the incoming user of their intent to join the match.
             await hub.Clients.Client(state.ConnectionId).SendAsync(nameof(IMultiplayerClient.MatchmakingQueueStatusChanged), new MatchmakingQueueStatus.JoiningMatch());
 
-            await processBundle(queue.MarkInvitationAccepted(new MatchmakingQueueUser(state.ConnectionId)));
+            foreach ((_, MatchmakingQueue queue) in queues)
+                await processBundle(queue.MarkInvitationAccepted(new MatchmakingQueueUser(state.ConnectionId)));
         }
 
         public async Task DeclineInvitationAsync(MatchmakingClientState state)
         {
-            await processBundle(queue.MarkInvitationDeclined(new MatchmakingQueueUser(state.ConnectionId)));
+            foreach ((_, MatchmakingQueue queue) in queues)
+                await processBundle(queue.MarkInvitationDeclined(new MatchmakingQueueUser(state.ConnectionId)));
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -98,7 +108,10 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.Queue
             while (!stoppingToken.IsCancellationRequested)
             {
                 await updateLobby();
-                await processBundle(queue.Update());
+
+                foreach ((_, MatchmakingQueue queue) in queues)
+                    await processBundle(queue.Update());
+
                 await Task.Delay(queue_update_rate, stoppingToken);
             }
         }
@@ -108,7 +121,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.Queue
             if (DateTimeOffset.Now - lastLobbyUpdateTime < periodic_update_rate)
                 return;
 
-            MatchmakingQueueUser[] users = queue.GetAllUsers();
+            MatchmakingQueueUser[] users = queues.Values.SelectMany(queue => queue.GetAllUsers()).ToArray();
             Random.Shared.Shuffle(users);
             queuedUsersSample = users.Take(50).Select(u => u.UserId).ToArray();
 
