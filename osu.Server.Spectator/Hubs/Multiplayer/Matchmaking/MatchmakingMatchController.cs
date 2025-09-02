@@ -60,7 +60,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking
         /// <summary>
         /// The size of matchmaking rooms.
         /// </summary>
-        public const int MATCHMAKING_ROOM_SIZE = 1;
+        public const int MATCHMAKING_ROOM_SIZE = 8;
 
         /// <summary>
         /// The beatmaps that form the playlist for each ruleset.
@@ -73,12 +73,12 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking
             { 3, [710980, 710980, 710980, 710980, 710980] },
         };
 
-        private const int total_rounds = 4;
+        private const int total_rounds = 8;
 
         /// <summary>
         /// The number of points awarded for each placement position (index 0 = #1, index 7 = #8).
         /// </summary>
-        private static readonly int[] placement_points = [8, 7, 6, 5, 4, 3, 2, 1];
+        private static readonly int[] placement_points = [11, 8, 6, 5, 4, 3, 2, 1];
 
         public MultiplayerPlaylistItem CurrentItem => room.CurrentPlaylistItem;
 
