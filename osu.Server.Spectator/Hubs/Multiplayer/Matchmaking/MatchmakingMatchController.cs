@@ -75,6 +75,11 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking
 
         private const int total_rounds = 4;
 
+        /// <summary>
+        /// The number of points awarded for each placement position (index 0 = #1, index 7 = #8).
+        /// </summary>
+        private static readonly int[] placement_points = [8, 7, 6, 5, 4, 3, 2, 1];
+
         public MultiplayerPlaylistItem CurrentItem => room.CurrentPlaylistItem;
 
         private readonly ServerMultiplayerRoom room;
@@ -268,7 +273,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking
                     scores[(int)score.user_id] = score;
             }
 
-            state.RecordScores(scores.Values.Select(s => s.ToScoreInfo()).ToArray());
+            state.RecordScores(scores.Values.Select(s => s.ToScoreInfo()).ToArray(), placement_points);
 
             await changeStage(MatchmakingStage.ResultsDisplaying);
 
