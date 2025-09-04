@@ -83,6 +83,8 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking
         private readonly Dictionary<int, long> userPicks = new Dictionary<int, long>();
         private readonly int rulesetId;
 
+        private int joinedUserCount;
+
         public MatchmakingMatchController(ServerMultiplayerRoom room, IMultiplayerHubContext hub, IDatabaseFactory dbFactory)
         {
             this.room = room;
@@ -130,7 +132,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking
             switch (state.Stage)
             {
                 case MatchmakingStage.WaitingForClientsJoin:
-                    if (room.Users.Count == MATCHMAKING_ROOM_SIZE)
+                    if (++joinedUserCount == MATCHMAKING_ROOM_SIZE)
                         await stageRoundWarmupTime(room);
                     break;
             }
