@@ -8,12 +8,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using osu.Game.Online.Matchmaking;
 using osu.Game.Online.Multiplayer;
 using osu.Game.Online.Rooms;
 using osu.Server.Spectator.Database;
 using osu.Server.Spectator.Database.Models;
 using osu.Server.Spectator.Services;
+using Sentry;
 
 namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.Queue
 {
@@ -36,15 +38,18 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.Queue
         private readonly IHubContext<MultiplayerHub> hub;
         private readonly ISharedInterop sharedInterop;
         private readonly IDatabaseFactory databaseFactory;
+        private readonly ILogger logger;
 
         private int[] queuedUsersSample = [];
         private DateTimeOffset lastLobbyUpdateTime = DateTimeOffset.UnixEpoch;
 
-        public MatchmakingQueueBackgroundService(IHubContext<MultiplayerHub> hub, ISharedInterop sharedInterop, IDatabaseFactory databaseFactory)
+        public MatchmakingQueueBackgroundService(IHubContext<MultiplayerHub> hub, ISharedInterop sharedInterop, IDatabaseFactory databaseFactory, ILoggerFactory loggerFactory)
         {
             this.hub = hub;
             this.sharedInterop = sharedInterop;
             this.databaseFactory = databaseFactory;
+
+            logger = loggerFactory.CreateLogger(nameof(MatchmakingQueueBackgroundService));
         }
 
         public bool IsInQueue(MatchmakingClientState state)
@@ -111,10 +116,28 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.Queue
         {
             while (!stoppingToken.IsCancellationRequested)
             {
-                await updateLobby();
+                try
+                {
+                    await updateLobby();
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Failed to update the matchmaking lobby.");
+                    SentrySdk.CaptureException(ex);
+                }
 
                 foreach ((_, MatchmakingQueue queue) in queues)
-                    await processBundle(queue.Update());
+                {
+                    try
+                    {
+                        await processBundle(queue.Update());
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogError(ex, "Failed to update the matchmaking queue for ruleset {rulesetId}.", queue.RulesetId);
+                        SentrySdk.CaptureException(ex);
+                    }
+                }
 
                 await Task.Delay(queue_update_rate, stoppingToken);
             }
