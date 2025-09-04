@@ -7,7 +7,6 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.SignalR;
-using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Hosting;
 using osu.Game.Online.Matchmaking;
 using osu.Game.Online.Multiplayer;
@@ -37,17 +36,15 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.Queue
         private readonly IHubContext<MultiplayerHub> hub;
         private readonly ISharedInterop sharedInterop;
         private readonly IDatabaseFactory databaseFactory;
-        private readonly IMemoryCache cache;
 
         private int[] queuedUsersSample = [];
         private DateTimeOffset lastLobbyUpdateTime = DateTimeOffset.UnixEpoch;
 
-        public MatchmakingQueueBackgroundService(IHubContext<MultiplayerHub> hub, ISharedInterop sharedInterop, IDatabaseFactory databaseFactory, IMemoryCache cache)
+        public MatchmakingQueueBackgroundService(IHubContext<MultiplayerHub> hub, ISharedInterop sharedInterop, IDatabaseFactory databaseFactory)
         {
             this.hub = hub;
             this.sharedInterop = sharedInterop;
             this.databaseFactory = databaseFactory;
-            this.cache = cache;
         }
 
         public bool IsInQueue(MatchmakingClientState state)
@@ -182,24 +179,18 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.Queue
 
         private async Task<MultiplayerPlaylistItem[]> queryPlaylistItems(int rulesetId)
         {
-            return (await cache.GetOrCreateAsync(playlistCacheKey(rulesetId), async _ =>
-                   {
-                       using (var db = databaseFactory.GetInstance())
-                       {
-                           database_beatmap[] beatmaps = await db.GetBeatmapsAsync(MatchmakingMatchController.BEATMAP_IDS[rulesetId]);
-                           return beatmaps.Select(b => new MultiplayerPlaylistItem
-                           {
-                               BeatmapID = b.beatmap_id,
-                               BeatmapChecksum = b.checksum!,
-                               RulesetID = rulesetId,
-                               StarRating = b.difficultyrating,
-                           }).ToArray();
-                       }
-                   }) ?? [])
-                   // Per-room isolation of playlist items.
-                   .Select(p => p.Clone()).ToArray();
+            using (var db = databaseFactory.GetInstance())
+            {
+                matchmaking_pool pool = (await db.GetMatchmakingPoolsAsync(rulesetId)).Last();
+                matchmaking_pool_beatmap[] beatmaps = await db.GetMatchmakingPoolBeatmapsAsync(pool.id);
+                return beatmaps.Select(b => new MultiplayerPlaylistItem
+                {
+                    BeatmapID = b.beatmap_id,
+                    BeatmapChecksum = b.checksum!,
+                    RulesetID = rulesetId,
+                    StarRating = b.difficultyrating,
+                }).ToArray();
+            }
         }
-
-        private static string playlistCacheKey(int rulesetId) => $"matchmaking-playlist-{rulesetId}";
     }
 }
