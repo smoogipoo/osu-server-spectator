@@ -279,8 +279,8 @@ namespace osu.Server.Spectator.Hubs.Multiplayer
             }
 
             var readyUsers = room.Users.Where(u =>
-                u.BeatmapAvailability.State == DownloadState.LocallyAvailable
-                && (u.State == MultiplayerUserState.Ready || u.State == MultiplayerUserState.Idle)
+                u.State == MultiplayerUserState.Ready
+                || (u.State == MultiplayerUserState.Idle && u.BeatmapAvailability.State == DownloadState.LocallyAvailable)
             ).ToArray();
 
             foreach (var u in readyUsers)
