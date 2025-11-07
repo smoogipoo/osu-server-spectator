@@ -363,6 +363,16 @@ namespace SampleMultiplayerClient
             return Task.CompletedTask;
         }
 
+        public Task MatchmakingChallengeIssued(int poolId, int userId)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task MatchmakingChallengeDeclined(int userId)
+        {
+            throw new NotImplementedException();
+        }
+
         public async Task DisconnectRequested()
         {
             Console.WriteLine("Disconnect requested");

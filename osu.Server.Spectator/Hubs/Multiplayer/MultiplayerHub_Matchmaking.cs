@@ -87,5 +87,20 @@ namespace osu.Server.Spectator.Hubs.Multiplayer
                 ((MatchmakingMatchController)room.Controller).SkipToNextStage(out _);
             }
         }
+
+        public Task MatchmakingIssueChallenge(int poolId, int userId)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task MatchmakingAcceptChallenge(int userId)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task MatchmakingDeclineChallenge(int userId)
+        {
+            throw new NotImplementedException();
+        }
     }
 }

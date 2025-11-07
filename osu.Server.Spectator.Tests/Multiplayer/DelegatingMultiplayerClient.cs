@@ -209,6 +209,16 @@ namespace osu.Server.Spectator.Tests.Multiplayer
                 await c.MatchmakingItemDeselected(userId, playlistItemId);
         }
 
+        public Task MatchmakingChallengeIssued(int poolId, int userId)
+        {
+            throw new System.NotImplementedException();
+        }
+
+        public Task MatchmakingChallengeDeclined(int userId)
+        {
+            throw new System.NotImplementedException();
+        }
+
         public Task SendCoreAsync(string method, object?[] args, CancellationToken cancellationToken = new CancellationToken())
         {
             return (Task)GetType().GetMethod(method, BindingFlags.Instance | BindingFlags.Public)!.Invoke(this, args)!;
