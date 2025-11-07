@@ -2,6 +2,7 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using Newtonsoft.Json;
 using StatsdClient;
@@ -12,6 +13,9 @@ namespace osu.Server.Spectator.Hubs.Multiplayer
     public class MultiplayerClientState : ClientState
     {
         private static int countUsersInRooms;
+
+        // user_id -> pool_id
+        public readonly Dictionary<int, int> PendingChallenges = new Dictionary<int, int>();
 
         public long? CurrentRoomID { get; private set; }
 

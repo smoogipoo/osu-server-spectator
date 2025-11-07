@@ -4,9 +4,13 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.SignalR;
 using osu.Game.Online.Matchmaking;
+using osu.Game.Online.Multiplayer;
+using osu.Server.Spectator.Database.Models;
 using osu.Server.Spectator.Extensions;
 using osu.Server.Spectator.Hubs.Multiplayer.Matchmaking;
+using osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.Queue;
 
 namespace osu.Server.Spectator.Hubs.Multiplayer
 {
@@ -88,19 +92,48 @@ namespace osu.Server.Spectator.Hubs.Multiplayer
             }
         }
 
-        public Task MatchmakingIssueChallenge(int poolId, int userId)
+        public async Task MatchmakingIssueChallenge(int poolId, int userId)
         {
-            throw new NotImplementedException();
+            using (var userUsage = await GetOrCreateLocalUserState())
+                userUsage.Item!.PendingChallenges[userId] = poolId;
+
+            await Clients.User(userId.ToString()).MatchmakingChallengeIssued(poolId, Context.GetUserId());
         }
 
-        public Task MatchmakingAcceptChallenge(int userId)
+        public async Task MatchmakingAcceptChallenge(int userId)
         {
-            throw new NotImplementedException();
+            using (var localUser = await GetOrCreateLocalUserState())
+            using (var otherUser = await GetStateFromUser(userId))
+            {
+                if (!otherUser.Item!.PendingChallenges.Remove(Context.GetUserId(), out int poolId))
+                    throw new InvalidStateException("There is no challenge request from the user.");
+
+                // Remove both players from the quick play matchmaking queue.
+                await matchmakingQueueService.RemoveFromQueueAsync(localUser.Item!);
+                await matchmakingQueueService.RemoveFromQueueAsync(otherUser.Item!);
+
+                using (var db = databaseFactory.GetInstance())
+                {
+                    matchmaking_pool pool = await db.GetMatchmakingPoolAsync(poolId) ?? throw new InvalidStateException($"Pool not found: {poolId}");
+
+                    MatchmakingQueueUser localMatchmakingUser = await matchmakingQueueService.CreateUserAsync(pool, localUser.Item!);
+                    MatchmakingQueueUser otherMatchmakingUser = await matchmakingQueueService.CreateUserAsync(pool, otherUser.Item!);
+
+                    (long roomId, string password) = await matchmakingQueueService.CreateRoomAsync(pool, [localMatchmakingUser, otherMatchmakingUser]);
+                    await Clients.Clients(localUser.Item!.ConnectionId, otherUser.Item!.ConnectionId).MatchmakingRoomReady(roomId, password);
+                }
+            }
         }
 
-        public Task MatchmakingDeclineChallenge(int userId)
+        public async Task MatchmakingDeclineChallenge(int userId)
         {
-            throw new NotImplementedException();
+            using (var challengerUsage = await GetStateFromUser(userId))
+            {
+                if (!challengerUsage.Item!.PendingChallenges.Remove(Context.GetUserId()))
+                    throw new InvalidStateException("There is no challenge request from the user.");
+            }
+
+            await Clients.User(userId.ToString()).MatchmakingChallengeDeclined(Context.GetUserId());
         }
     }
 }

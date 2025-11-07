@@ -93,34 +93,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.Queue
             using (var db = databaseFactory.GetInstance())
             {
                 matchmaking_pool pool = await db.GetMatchmakingPoolAsync(poolId) ?? throw new InvalidStateException($"Pool not found: {poolId}");
-                matchmaking_user_stats? stats = await db.GetMatchmakingUserStatsAsync(state.UserId, pool.ruleset_id);
-
-                if (stats == null)
-                {
-                    // Estimate initial elo from PP.
-                    double pp = await db.GetUserPPAsync(state.UserId, pool.ruleset_id);
-                    double eloEstimate = -4000 + 600 * Math.Log(pp + 4000);
-
-                    await db.UpdateMatchmakingUserStatsAsync(stats = new matchmaking_user_stats
-                    {
-                        user_id = (uint)state.UserId,
-                        ruleset_id = (ushort)pool.ruleset_id,
-                        EloData =
-                        {
-                            InitialRating = new EloRating(eloEstimate),
-                            NormalFactor = new EloRating(eloEstimate),
-                            ApproximatePosterior = new EloRating(eloEstimate)
-                        }
-                    });
-                }
-
-                MatchmakingQueueUser user = new MatchmakingQueueUser(state.ConnectionId)
-                {
-                    UserId = state.UserId,
-                    Rating = stats.EloData.ApproximatePosterior,
-                    QueueBanStartTime = memoryCache.Get<DateTimeOffset?>(queue_ban_start_time(state.UserId)) ?? DateTimeOffset.MinValue
-                };
-
+                MatchmakingQueueUser user = await CreateUserAsync(pool, state);
                 MatchmakingQueue queue = poolQueues.GetOrAdd(poolId, _ => new MatchmakingQueue(pool));
                 await processBundle(queue.Add(user));
             }
@@ -263,26 +236,66 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.Queue
                 foreach (var user in group.Users)
                     DogStatsd.Timer($"{statsd_prefix}.queue.duration", (DateTimeOffset.Now - user.SearchStartTime).TotalMilliseconds, tags: [$"queue:{bundle.Queue.Pool.name}"]);
 
-                string password = Guid.NewGuid().ToString();
-                long roomId = await sharedInterop.CreateRoomAsync(AppSettings.BanchoBotUserId, new MultiplayerRoom(0)
-                {
-                    Settings =
-                    {
-                        MatchType = MatchType.Matchmaking,
-                        Password = password
-                    },
-                    Playlist = await queryPlaylistItems(bundle.Queue.Pool, group.Users.Select(u => u.Rating).ToArray())
-                });
-
-                // Initialise the room and users
-                using (var roomUsage = await rooms.GetForUse(roomId, true))
-                    roomUsage.Item = await InitialiseRoomAsync(roomId, hubContext, databaseFactory, group.Users.Select(u => u.UserId).ToArray());
-
+                (long roomId, string password) = await CreateRoomAsync(bundle.Queue.Pool, group.Users);
                 await hub.Clients.Group(group.Identifier).SendAsync(nameof(IMatchmakingClient.MatchmakingRoomReady), roomId, password);
 
                 foreach (var user in group.Users)
                     await hub.Groups.RemoveFromGroupAsync(user.Identifier, group.Identifier);
             }
+        }
+
+        public async Task<MatchmakingQueueUser> CreateUserAsync(matchmaking_pool pool, MultiplayerClientState state)
+        {
+            using (var db = databaseFactory.GetInstance())
+            {
+                matchmaking_user_stats? stats = await db.GetMatchmakingUserStatsAsync(state.UserId, pool.ruleset_id);
+
+                if (stats == null)
+                {
+                    // Estimate initial elo from PP.
+                    double pp = await db.GetUserPPAsync(state.UserId, pool.ruleset_id);
+                    double eloEstimate = -4000 + 600 * Math.Log(pp + 4000);
+
+                    await db.UpdateMatchmakingUserStatsAsync(stats = new matchmaking_user_stats
+                    {
+                        user_id = (uint)state.UserId,
+                        ruleset_id = (ushort)pool.ruleset_id,
+                        EloData =
+                        {
+                            InitialRating = new EloRating(eloEstimate),
+                            NormalFactor = new EloRating(eloEstimate),
+                            ApproximatePosterior = new EloRating(eloEstimate)
+                        }
+                    });
+                }
+
+                return new MatchmakingQueueUser(state.ConnectionId)
+                {
+                    UserId = state.UserId,
+                    Rating = stats.EloData.ApproximatePosterior,
+                    QueueBanStartTime = memoryCache.Get<DateTimeOffset?>(queue_ban_start_time(state.UserId)) ?? DateTimeOffset.MinValue
+                };
+            }
+        }
+
+        public async Task<(long roomId, string pasword)> CreateRoomAsync(matchmaking_pool pool, MatchmakingQueueUser[] users)
+        {
+            string password = Guid.NewGuid().ToString();
+            long roomId = await sharedInterop.CreateRoomAsync(AppSettings.BanchoBotUserId, new MultiplayerRoom(0)
+            {
+                Settings =
+                {
+                    MatchType = MatchType.Matchmaking,
+                    Password = password
+                },
+                Playlist = await queryPlaylistItems(pool, users.Select(u => u.Rating).ToArray())
+            });
+
+            // Initialise the room and users
+            using (var roomUsage = await rooms.GetForUse(roomId, true))
+                roomUsage.Item = await InitialiseRoomAsync(roomId, hubContext, databaseFactory, users.Select(u => u.UserId).ToArray());
+
+            return (roomId, password);
         }
 
         /// <summary>

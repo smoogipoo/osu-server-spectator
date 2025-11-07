@@ -3,6 +3,7 @@
 
 using System.Threading.Tasks;
 using Microsoft.Extensions.Hosting;
+using osu.Server.Spectator.Database.Models;
 
 namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.Queue
 {
@@ -44,5 +45,9 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.Queue
         /// User declines an invitation.
         /// </summary>
         Task DeclineInvitationAsync(MultiplayerClientState state);
+
+        Task<MatchmakingQueueUser> CreateUserAsync(matchmaking_pool pool, MultiplayerClientState state);
+
+        Task<(long roomId, string pasword)> CreateRoomAsync(matchmaking_pool pool, MatchmakingQueueUser[] users);
     }
 }
