@@ -4,13 +4,10 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.SignalR;
 using osu.Game.Online.Matchmaking;
 using osu.Game.Online.Multiplayer;
-using osu.Server.Spectator.Database.Models;
 using osu.Server.Spectator.Extensions;
 using osu.Server.Spectator.Hubs.Multiplayer.Matchmaking;
-using osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.Queue;
 
 namespace osu.Server.Spectator.Hubs.Multiplayer
 {
@@ -112,16 +109,19 @@ namespace osu.Server.Spectator.Hubs.Multiplayer
                 await matchmakingQueueService.RemoveFromQueueAsync(localUser.Item!);
                 await matchmakingQueueService.RemoveFromQueueAsync(otherUser.Item!);
 
-                using (var db = databaseFactory.GetInstance())
-                {
-                    matchmaking_pool pool = await db.GetMatchmakingPoolAsync(poolId) ?? throw new InvalidStateException($"Pool not found: {poolId}");
+                await matchmakingQueueService.AddToQueueAsync(localUser.Item!, poolId, otherUser.Item!.UserId);
+                await matchmakingQueueService.AddToQueueAsync(otherUser.Item!, poolId, localUser.Item!.UserId);
 
-                    MatchmakingQueueUser localMatchmakingUser = await matchmakingQueueService.CreateUserAsync(pool, localUser.Item!);
-                    MatchmakingQueueUser otherMatchmakingUser = await matchmakingQueueService.CreateUserAsync(pool, otherUser.Item!);
-
-                    (long roomId, string password) = await matchmakingQueueService.CreateRoomAsync(pool, [localMatchmakingUser, otherMatchmakingUser]);
-                    await Clients.Clients(localUser.Item!.ConnectionId, otherUser.Item!.ConnectionId).MatchmakingRoomReady(roomId, password);
-                }
+                // using (var db = databaseFactory.GetInstance())
+                // {
+                //     matchmaking_pool pool = await db.GetMatchmakingPoolAsync(poolId) ?? throw new InvalidStateException($"Pool not found: {poolId}");
+                //
+                //     MatchmakingQueueUser localMatchmakingUser = await matchmakingQueueService.CreateUserAsync(pool, localUser.Item!);
+                //     MatchmakingQueueUser otherMatchmakingUser = await matchmakingQueueService.CreateUserAsync(pool, otherUser.Item!);
+                //
+                //     (long roomId, string password) = await matchmakingQueueService.CreateRoomAsync(pool, [localMatchmakingUser, otherMatchmakingUser]);
+                //     await Clients.Clients(localUser.Item!.ConnectionId, otherUser.Item!.ConnectionId).MatchmakingRoomReady(roomId, password);
+                // }
             }
         }
     }
