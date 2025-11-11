@@ -368,7 +368,7 @@ namespace SampleMultiplayerClient
             throw new NotImplementedException();
         }
 
-        public Task MatchmakingChallengeDeclined(int userId)
+        public Task MatchmakingChallengeCancelled(int userId)
         {
             throw new NotImplementedException();
         }

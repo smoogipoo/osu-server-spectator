@@ -214,7 +214,7 @@ namespace osu.Server.Spectator.Tests.Multiplayer
             throw new System.NotImplementedException();
         }
 
-        public Task MatchmakingChallengeDeclined(int userId)
+        public Task MatchmakingChallengeCancelled(int userId)
         {
             throw new System.NotImplementedException();
         }

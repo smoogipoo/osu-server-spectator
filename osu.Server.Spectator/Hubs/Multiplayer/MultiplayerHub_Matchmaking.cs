@@ -124,16 +124,5 @@ namespace osu.Server.Spectator.Hubs.Multiplayer
                 }
             }
         }
-
-        public async Task MatchmakingDeclineChallenge(int userId)
-        {
-            using (var challengerUsage = await GetStateFromUser(userId))
-            {
-                if (!challengerUsage.Item!.PendingChallenges.Remove(Context.GetUserId()))
-                    throw new InvalidStateException("There is no challenge request from the user.");
-            }
-
-            await Clients.User(userId.ToString()).MatchmakingChallengeDeclined(Context.GetUserId());
-        }
     }
 }
