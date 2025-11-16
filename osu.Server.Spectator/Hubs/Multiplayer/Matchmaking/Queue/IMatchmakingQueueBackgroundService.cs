@@ -29,12 +29,21 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.Queue
         /// <summary>
         /// Adds a user to the matchmaking queue.
         /// </summary>
-        Task AddToQueueAsync(MultiplayerClientState state, int poolId, int? targetUserId = null);
+        Task AddToQueueAsync(MultiplayerClientState state, int poolId);
 
         /// <summary>
         /// Removes a user from the matchmaking queue.
         /// </summary>
         Task RemoveFromQueueAsync(MultiplayerClientState state);
+
+        /// <summary>
+        /// Creates a duel between two players.
+        /// </summary>
+        /// <param name="challengerState">The player who requested the duel.</param>
+        /// <param name="challengeeState">The player who was challenged. The challengee is considered to have accepted the duel.</param>
+        /// <param name="poolId"></param>
+        /// <returns></returns>
+        Task CreateDuelAsync(MultiplayerClientState challengerState, MultiplayerClientState challengeeState, int poolId);
 
         /// <summary>
         /// User accepts an invitation.

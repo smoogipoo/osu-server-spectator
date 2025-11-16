@@ -15,7 +15,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer
         private static int countUsersInRooms;
 
         // user_id -> pool_id
-        public readonly Dictionary<int, int> PendingChallenges = new Dictionary<int, int>();
+        public readonly Dictionary<int, int> OutgoingChallenges = new Dictionary<int, int>();
 
         public long? CurrentRoomID { get; private set; }
 

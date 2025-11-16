@@ -92,7 +92,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer
         public async Task MatchmakingIssueChallenge(int poolId, int userId)
         {
             using (var userUsage = await GetOrCreateLocalUserState())
-                userUsage.Item!.PendingChallenges[userId] = poolId;
+                userUsage.Item!.OutgoingChallenges[userId] = poolId;
 
             await Clients.User(userId.ToString()).MatchmakingChallengeIssued(poolId, Context.GetUserId());
         }
@@ -102,15 +102,10 @@ namespace osu.Server.Spectator.Hubs.Multiplayer
             using (var localUser = await GetOrCreateLocalUserState())
             using (var otherUser = await GetStateFromUser(userId))
             {
-                if (!otherUser.Item!.PendingChallenges.Remove(Context.GetUserId(), out int poolId))
+                if (!otherUser.Item!.OutgoingChallenges.Remove(Context.GetUserId(), out int poolId))
                     throw new InvalidStateException("There is no challenge request from the user.");
 
-                // Remove both players from the quick play matchmaking queue.
-                await matchmakingQueueService.RemoveFromQueueAsync(localUser.Item!);
-                await matchmakingQueueService.RemoveFromQueueAsync(otherUser.Item!);
-
-                await matchmakingQueueService.AddToQueueAsync(localUser.Item!, poolId, otherUser.Item!.UserId);
-                await matchmakingQueueService.AddToQueueAsync(otherUser.Item!, poolId, localUser.Item!.UserId);
+                await matchmakingQueueService.CreateDuelAsync(otherUser.Item, localUser.Item!, poolId);
 
                 // using (var db = databaseFactory.GetInstance())
                 // {

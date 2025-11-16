@@ -42,7 +42,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.Queue
         private static string queue_ban_start_time(int userId) => $"matchmaking-ban-start-time:{userId}";
 
         private readonly ConcurrentDictionary<int, MatchmakingQueue> quickPlayQueues = new ConcurrentDictionary<int, MatchmakingQueue>();
-        private readonly ConcurrentDictionary<ChallengeQueueLookup, MatchmakingQueue> challengeQueues = new ConcurrentDictionary<ChallengeQueueLookup, MatchmakingQueue>();
+        private readonly ConcurrentDictionary<ChallengeQueueLookup, MatchmakingQueue> duelQueues = new ConcurrentDictionary<ChallengeQueueLookup, MatchmakingQueue>();
 
         private readonly IHubContext<MultiplayerHub> hub;
         private readonly ISharedInterop sharedInterop;
@@ -76,7 +76,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.Queue
                     return true;
             }
 
-            foreach ((_, MatchmakingQueue queue) in challengeQueues)
+            foreach ((_, MatchmakingQueue queue) in duelQueues)
             {
                 if (queue.IsInQueue(new MatchmakingQueueUser(state.ConnectionId)))
                     return true;
@@ -95,25 +95,13 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.Queue
             await hub.Groups.RemoveFromGroupAsync(state.ConnectionId, lobby_users_group);
         }
 
-        public async Task AddToQueueAsync(MultiplayerClientState state, int poolId, int? targetUserId = null)
+        public async Task AddToQueueAsync(MultiplayerClientState state, int poolId)
         {
             using (var db = databaseFactory.GetInstance())
             {
                 matchmaking_pool pool = await db.GetMatchmakingPoolAsync(poolId) ?? throw new InvalidStateException($"Pool not found: {poolId}");
                 MatchmakingQueueUser user = await CreateUserAsync(pool, state);
-
-                MatchmakingQueue queue;
-
-                if (targetUserId != null)
-                {
-                    pool.lobby_size = 2;
-                    pool.rating_search_radius = int.MaxValue;
-
-                    queue = challengeQueues.GetOrAdd(new ChallengeQueueLookup(state.UserId, targetUserId.Value), _ => new MatchmakingQueue(pool));
-                }
-                else
-                    queue = quickPlayQueues.GetOrAdd(poolId, _ => new MatchmakingQueue(pool));
-
+                MatchmakingQueue queue = quickPlayQueues.GetOrAdd(poolId, _ => new MatchmakingQueue(pool));
                 await processBundle(queue.Add(user));
             }
         }
@@ -123,8 +111,43 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.Queue
             foreach ((_, MatchmakingQueue queue) in quickPlayQueues)
                 await processBundle(queue.Remove(new MatchmakingQueueUser(state.ConnectionId)));
 
-            foreach ((_, MatchmakingQueue queue) in challengeQueues)
+            foreach ((_, MatchmakingQueue queue) in duelQueues)
                 await processBundle(queue.Remove(new MatchmakingQueueUser(state.ConnectionId)));
+        }
+
+        public async Task CreateDuelAsync(MultiplayerClientState challengerState, MultiplayerClientState challengeeState, int poolId)
+        {
+            // Remove both users from any existing queues.
+            await RemoveFromQueueAsync(challengerState);
+            await RemoveFromQueueAsync(challengeeState);
+
+            using (var db = databaseFactory.GetInstance())
+            {
+                ChallengeQueueLookup key = new ChallengeQueueLookup(challengerState.UserId, challengeeState.UserId);
+
+                if (duelQueues.ContainsKey(key))
+                    throw new InvalidOperationException($"An ongoing duel already exists between the two users ({challengerState.UserId} - {challengeeState.UserId}).");
+
+                matchmaking_pool pool = await db.GetMatchmakingPoolAsync(poolId) ?? throw new InvalidStateException($"Pool not found: {poolId}");
+                pool.lobby_size = 2;
+                pool.rating_search_radius = int.MaxValue;
+
+                MatchmakingQueueUser challenger = await CreateUserAsync(pool, challengerState);
+                MatchmakingQueueUser challengee = await CreateUserAsync(pool, challengeeState);
+                MatchmakingQueue queue = new MatchmakingQueue(pool);
+
+                // Mark the challengee as having already accepted the invitation, because they've accepted the duel.
+                challengee.InviteStartTime = queue.Clock.UtcNow;
+                challengee.InviteAccepted = true;
+
+                await processBundle(queue.Add(challenger));
+                await processBundle(queue.Add(challengee));
+
+                // The two users should get matched up immediately.
+                await processBundle(queue.Update());
+
+                duelQueues[key] = queue;
+            }
         }
 
         public async Task AcceptInvitationAsync(MultiplayerClientState state)
@@ -135,7 +158,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.Queue
             foreach ((_, MatchmakingQueue queue) in quickPlayQueues)
                 await processBundle(queue.MarkInvitationAccepted(new MatchmakingQueueUser(state.ConnectionId)));
 
-            foreach ((_, MatchmakingQueue queue) in challengeQueues)
+            foreach ((_, MatchmakingQueue queue) in duelQueues)
                 await processBundle(queue.MarkInvitationAccepted(new MatchmakingQueueUser(state.ConnectionId)));
         }
 
@@ -144,7 +167,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.Queue
             foreach ((_, MatchmakingQueue queue) in quickPlayQueues)
                 await processBundle(queue.MarkInvitationDeclined(new MatchmakingQueueUser(state.ConnectionId)));
 
-            foreach ((_, MatchmakingQueue queue) in challengeQueues)
+            foreach ((_, MatchmakingQueue queue) in duelQueues)
                 await processBundle(queue.MarkInvitationDeclined(new MatchmakingQueueUser(state.ConnectionId)));
         }
 
@@ -192,7 +215,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.Queue
                 }
             }
 
-            foreach ((_, MatchmakingQueue queue) in challengeQueues)
+            foreach ((_, MatchmakingQueue queue) in duelQueues)
             {
                 try
                 {
@@ -267,8 +290,10 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.Queue
                 foreach (var user in group.Users)
                     await hub.Groups.AddToGroupAsync(user.Identifier, group.Identifier, CancellationToken.None);
 
-                await hub.Clients.Group(group.Identifier).SendAsync(nameof(IMatchmakingClient.MatchmakingRoomInvited));
-                await hub.Clients.Group(group.Identifier).SendAsync(nameof(IMatchmakingClient.MatchmakingQueueStatusChanged), new MatchmakingQueueStatus.MatchFound());
+                string[] pendingUsers = group.Users.Where(u => !u.InviteAccepted).Select(u => u.Identifier).ToArray();
+
+                await hub.Clients.Clients(pendingUsers).SendAsync(nameof(IMatchmakingClient.MatchmakingRoomInvited));
+                await hub.Clients.Clients(pendingUsers).SendAsync(nameof(IMatchmakingClient.MatchmakingQueueStatusChanged), new MatchmakingQueueStatus.MatchFound());
             }
 
             foreach (var group in bundle.CompletedGroups)
