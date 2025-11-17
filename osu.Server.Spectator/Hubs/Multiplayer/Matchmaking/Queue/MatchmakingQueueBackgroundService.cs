@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -42,7 +43,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.Queue
         private static string queue_ban_start_time(int userId) => $"matchmaking-ban-start-time:{userId}";
 
         private readonly ConcurrentDictionary<int, MatchmakingQueue> quickPlayQueues = new ConcurrentDictionary<int, MatchmakingQueue>();
-        private readonly ConcurrentDictionary<ChallengeQueueLookup, MatchmakingQueue> duelQueues = new ConcurrentDictionary<ChallengeQueueLookup, MatchmakingQueue>();
+        private readonly ConcurrentDictionary<DuelLookupKey, MatchmakingQueue> duelQueues = new ConcurrentDictionary<DuelLookupKey, MatchmakingQueue>();
 
         private readonly IHubContext<MultiplayerHub> hub;
         private readonly ISharedInterop sharedInterop;
@@ -76,12 +77,6 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.Queue
                     return true;
             }
 
-            foreach ((_, MatchmakingQueue queue) in duelQueues)
-            {
-                if (queue.IsInQueue(new MatchmakingQueueUser(state.ConnectionId)))
-                    return true;
-            }
-
             return false;
         }
 
@@ -110,31 +105,25 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.Queue
         {
             foreach ((_, MatchmakingQueue queue) in quickPlayQueues)
                 await processBundle(queue.Remove(new MatchmakingQueueUser(state.ConnectionId)));
-
-            foreach ((_, MatchmakingQueue queue) in duelQueues)
-                await processBundle(queue.Remove(new MatchmakingQueueUser(state.ConnectionId)));
         }
 
         public async Task CreateDuelAsync(MultiplayerClientState challengerState, MultiplayerClientState challengeeState, int poolId)
         {
-            // Remove both users from any existing queues.
-            await RemoveFromQueueAsync(challengerState);
-            await RemoveFromQueueAsync(challengeeState);
-
             using (var db = databaseFactory.GetInstance())
             {
-                ChallengeQueueLookup key = new ChallengeQueueLookup(challengerState.UserId, challengeeState.UserId);
+                DuelLookupKey key = new DuelLookupKey(challengerState.UserId, challengeeState.UserId);
 
-                if (duelQueues.ContainsKey(key))
-                    throw new InvalidOperationException($"An ongoing duel already exists between the two users ({challengerState.UserId} - {challengeeState.UserId}).");
-
+                // Pool with custom properties that allow matchmaking to complete immediately.
                 matchmaking_pool pool = await db.GetMatchmakingPoolAsync(poolId) ?? throw new InvalidStateException($"Pool not found: {poolId}");
                 pool.lobby_size = 2;
                 pool.rating_search_radius = int.MaxValue;
 
-                MatchmakingQueueUser challenger = await CreateUserAsync(pool, challengerState);
-                MatchmakingQueueUser challengee = await CreateUserAsync(pool, challengeeState);
                 MatchmakingQueue queue = new MatchmakingQueue(pool);
+
+                MatchmakingQueueUser challenger = await CreateUserAsync(pool, challengerState);
+                challenger.QueueBanStartTime = DateTimeOffset.MinValue;
+                MatchmakingQueueUser challengee = await CreateUserAsync(pool, challengeeState);
+                challengee.QueueBanStartTime = DateTimeOffset.MinValue;
 
                 // Mark the challengee as having already accepted the invitation, because they've accepted the duel.
                 challengee.InviteStartTime = queue.Clock.UtcNow;
@@ -143,7 +132,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.Queue
                 await processBundle(queue.Add(challenger));
                 await processBundle(queue.Add(challengee));
 
-                // The two users should get matched up immediately.
+                // Immediately match the two players.
                 await processBundle(queue.Update());
 
                 duelQueues[key] = queue;
@@ -215,17 +204,9 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.Queue
                 }
             }
 
-            foreach ((_, MatchmakingQueue queue) in duelQueues)
-            {
-                try
-                {
-                    await processBundle(queue.Update());
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError(ex, "Failed to update the matchmaking queue for pool {poolId}.", queue.Pool.id);
-                }
-            }
+            // Clean up any stale duel queues - these should always have two players.
+            foreach ((DuelLookupKey key, _) in duelQueues.Where(q => q.Value.Count < 2))
+                duelQueues.Remove(key, out _);
         }
 
         private async Task updateLobby()
@@ -403,25 +384,25 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.Queue
             }).ToArray();
         }
 
-        private readonly struct ChallengeQueueLookup : IEquatable<ChallengeQueueLookup>
+        private readonly struct DuelLookupKey : IEquatable<DuelLookupKey>
         {
             private readonly int userA;
             private readonly int userB;
 
-            public ChallengeQueueLookup(int userA, int userB)
+            public DuelLookupKey(int userA, int userB)
             {
                 this.userA = Math.Min(userA, userB);
                 this.userB = Math.Max(userA, userB);
             }
 
-            public bool Equals(ChallengeQueueLookup other)
+            public bool Equals(DuelLookupKey other)
             {
                 return userA == other.userA && userB == other.userB;
             }
 
             public override bool Equals(object? obj)
             {
-                return obj is ChallengeQueueLookup other && Equals(other);
+                return obj is DuelLookupKey other && Equals(other);
             }
 
             public override int GetHashCode()

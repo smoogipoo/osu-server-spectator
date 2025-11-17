@@ -92,9 +92,10 @@ namespace osu.Server.Spectator.Hubs.Multiplayer
         public async Task MatchmakingIssueChallenge(int poolId, int userId)
         {
             using (var userUsage = await GetOrCreateLocalUserState())
-                userUsage.Item!.OutgoingChallenges[userId] = poolId;
-
-            await Clients.User(userId.ToString()).MatchmakingChallengeIssued(poolId, Context.GetUserId());
+            {
+                if (userUsage.Item!.OutgoingChallenges.TryAdd(userId, poolId))
+                    await Clients.User(userId.ToString()).MatchmakingChallengeIssued(poolId, Context.GetUserId());
+            }
         }
 
         public async Task MatchmakingAcceptChallenge(int userId)
