@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using osu.Game.Online.API;
 using osu.Game.Online.Multiplayer;
+using osu.Game.Online.Multiplayer.MatchTypes.RankedPlay;
 using osu.Game.Online.Rooms;
 using osu.Server.Spectator.Entities;
 
@@ -151,6 +152,8 @@ namespace osu.Server.Spectator.Hubs.Multiplayer
         Task NotifyMatchmakingItemDeselected(ServerMultiplayerRoom room, int userId, long playlistItemId);
 
         Task CheckVotesToSkipPassed(ServerMultiplayerRoom room);
+
+        Task NotifyRankedPlayCardRevealed(ServerMultiplayerRoom room, MultiplayerRoomUser? user, RankedPlayCard card);
 
         void Log(ServerMultiplayerRoom room, MultiplayerRoomUser? user, string message, LogLevel logLevel = LogLevel.Information);
 

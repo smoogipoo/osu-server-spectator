@@ -12,6 +12,8 @@ using osu.Game.Online;
 using osu.Game.Online.API;
 using osu.Game.Online.Matchmaking;
 using osu.Game.Online.Multiplayer;
+using osu.Game.Online.Multiplayer.MatchTypes.RankedPlay;
+using osu.Game.Online.RankedPlay;
 using osu.Game.Online.Rooms;
 using osu.Game.Rulesets;
 using osu.Server.Spectator.Database.Models;
@@ -413,6 +415,14 @@ namespace osu.Server.Spectator.Hubs.Multiplayer
 
             if (countVotedUsers >= countGameplayUsers / 2 + 1)
                 await context.Clients.Group(MultiplayerHub.GetGroupId(room.RoomID)).SendAsync(nameof(IMultiplayerClient.VoteToSkipIntroPassed));
+        }
+
+        public async Task NotifyRankedPlayCardRevealed(ServerMultiplayerRoom room, MultiplayerRoomUser? user, RankedPlayCard card)
+        {
+            if (user != null)
+                await context.Clients.User(user.UserID.ToString()).SendAsync(nameof(IRankedPlayClient.RankedPlayCardRevealed), card, card.Item);
+            else
+                await context.Clients.Group(MultiplayerHub.GetGroupId(room.RoomID)).SendAsync(nameof(IRankedPlayClient.RankedPlayCardRevealed), card, card.Item);
         }
 
         public void Log(ServerMultiplayerRoom room, MultiplayerRoomUser? user, string message, LogLevel logLevel = LogLevel.Information)

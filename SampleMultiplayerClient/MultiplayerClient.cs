@@ -12,6 +12,7 @@ using osu.Game.Online;
 using osu.Game.Online.API;
 using osu.Game.Online.Matchmaking;
 using osu.Game.Online.Multiplayer;
+using osu.Game.Online.Multiplayer.MatchTypes.RankedPlay;
 using osu.Game.Online.Rooms;
 
 namespace SampleMultiplayerClient
@@ -360,6 +361,30 @@ namespace SampleMultiplayerClient
         public Task MatchmakingItemDeselected(int userId, long playlistItemId)
         {
             Console.WriteLine($"Matchmaking playlist item deselected: (user: {userId}, item: {playlistItemId}).");
+            return Task.CompletedTask;
+        }
+
+        public Task RankedPlayCardsDrawn(int userId, RankedPlayCard[] cards)
+        {
+            Console.WriteLine($"Ranked play cards drawn: {cards.Length}");
+            return Task.CompletedTask;
+        }
+
+        public Task RankedPlayCardsDiscarded(RankedPlayCard[] cards)
+        {
+            Console.WriteLine($"Ranked play cards discarded: {cards.Length}");
+            return Task.CompletedTask;
+        }
+
+        public Task RankedPlayCardPlayed(RankedPlayCard card)
+        {
+            Console.WriteLine($"Ranked play card played: {card.ID}");
+            return Task.CompletedTask;
+        }
+
+        public Task RankedPlayCardRevealed(RankedPlayCard card, MultiplayerPlaylistItem item)
+        {
+            Console.WriteLine($"Ranked play card revealed: {card.ID} => {item.ID}");
             return Task.CompletedTask;
         }
 

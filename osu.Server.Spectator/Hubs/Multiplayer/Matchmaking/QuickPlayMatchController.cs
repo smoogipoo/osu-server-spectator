@@ -19,7 +19,7 @@ using osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.Elo;
 namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking
 {
     [NonController]
-    public class MatchmakingMatchController : IMatchController
+    public class QuickPlayMatchController : IMatchController, IMatchmakingMatchController
     {
         /// <summary>
         /// Duration users are given to enter the room before it automatically starts.
@@ -100,7 +100,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking
 
         private int joinedUserCount;
 
-        public MatchmakingMatchController(ServerMultiplayerRoom room, IMultiplayerHubContext hub, IDatabaseFactory dbFactory, MultiplayerEventLogger eventLogger)
+        public QuickPlayMatchController(ServerMultiplayerRoom room, IMultiplayerHubContext hub, IDatabaseFactory dbFactory, MultiplayerEventLogger eventLogger)
         {
             this.room = room;
             this.hub = hub;
