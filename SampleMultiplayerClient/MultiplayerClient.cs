@@ -364,25 +364,25 @@ namespace SampleMultiplayerClient
             return Task.CompletedTask;
         }
 
-        public Task RankedPlayCardsDrawn(int userId, RankedPlayCard[] cards)
+        public Task RankedPlayCardsDrawn(int userId, RankedPlayCardItem[] cards)
         {
             Console.WriteLine($"Ranked play cards drawn: {cards.Length}");
             return Task.CompletedTask;
         }
 
-        public Task RankedPlayCardsDiscarded(RankedPlayCard[] cards)
+        public Task RankedPlayCardsDiscarded(RankedPlayCardItem[] cards)
         {
             Console.WriteLine($"Ranked play cards discarded: {cards.Length}");
             return Task.CompletedTask;
         }
 
-        public Task RankedPlayCardPlayed(RankedPlayCard card)
+        public Task RankedPlayCardPlayed(RankedPlayCardItem card)
         {
             Console.WriteLine($"Ranked play card played: {card.ID}");
             return Task.CompletedTask;
         }
 
-        public Task RankedPlayCardRevealed(RankedPlayCard card, MultiplayerPlaylistItem item)
+        public Task RankedPlayCardRevealed(RankedPlayCardItem card, MultiplayerPlaylistItem item)
         {
             Console.WriteLine($"Ranked play card revealed: {card.ID} => {item.ID}");
             return Task.CompletedTask;

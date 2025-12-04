@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using osu.Game.Online.Multiplayer;
@@ -52,11 +53,15 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking
         private readonly MultiplayerEventLogger eventLogger;
         private readonly RankedPlayRoomState state;
 
+        private readonly List<RankedPlayCardItem> deck = [];
+        private readonly Dictionary<RankedPlayCardItem, MultiplayerPlaylistItem> itemMap = [];
+
         /// <summary>
         /// Whether a user has already discarded cards from their hand.
         /// </summary>
         private readonly HashSet<int> userCardsDiscarded = [];
 
+        private RankedPlayCardItem? activeCard;
         private bool statsUpdatePending = true;
 
         public RankedPlayMatchController(ServerMultiplayerRoom room, IMultiplayerHubContext hub, IDatabaseFactory dbFactory, MultiplayerEventLogger eventLogger)
@@ -66,16 +71,22 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking
             this.dbFactory = dbFactory;
             this.eventLogger = eventLogger;
 
-            room.MatchState = state = new RankedPlayRoomState
+            if (room.Playlist.Count < deck_size)
+                throw new InvalidOperationException($"There should be at least {deck_size} items in the playlist!");
+
+            foreach (var item in room.Playlist)
             {
-                Deck = Random.Shared.GetItems(room.Playlist.ToArray(), room.Playlist.Count).Select(item => new RankedPlayCard { Item = item }).ToArray()
-            };
+                var card = new RankedPlayCardItem();
+                deck.Add(card);
+                itemMap[card] = item;
+            }
+
+            Random.Shared.Shuffle(CollectionsMarshal.AsSpan(deck));
+
+            room.MatchState = state = new RankedPlayRoomState();
 
             // Needs to be set to something...
             room.Settings.PlaylistItemId = room.Playlist[Random.Shared.Next(0, room.Playlist.Count)].ID;
-
-            if (state.Deck.Length < deck_size)
-                throw new InvalidOperationException($"There should be at least {deck_size} cards in the deck!");
         }
 
         public async Task Initialise()
@@ -106,10 +117,11 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking
             }
 
             // Remove the active card from play.
-            RankedPlayCard activeCard = state.PlayedCard!;
-            state.PlayedCard = null;
-            await hub.NotifyMatchRoomStateChanged(room);
-            await discardCards(ActivePlayer, [activeCard]);
+            if (activeCard != null)
+            {
+                await removeCards(ActivePlayer, [activeCard]);
+                activeCard = null;
+            }
 
             await stageResults();
         }
@@ -127,7 +139,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking
             await hub.NotifyMatchUserStateChanged(room, user);
 
             // Populate the user's initial hand.
-            await drawCards(user, player_hand_size);
+            await addCards(user, player_hand_size);
 
             if (room.Users.Count == room_size)
                 await stageRoundWarmup(room);
@@ -172,7 +184,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking
             countdownTask = room.SkipToEndOfCountdown(room.FindCountdownOfType<RankedPlayStageCountdown>());
         }
 
-        public async Task DiscardCards(MultiplayerRoomUser user, RankedPlayCard[] cards)
+        public async Task DiscardCards(MultiplayerRoomUser user, RankedPlayCardItem[] cards)
         {
             if (state.Stage != RankedPlayStage.CardDiscard)
                 return;
@@ -185,11 +197,11 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking
             if (!cards.All(userState.Hand.Contains))
                 throw new InvalidStateException("One or more cards were not in the hand.");
 
-            await discardCards(user, cards);
-            await drawCards(user, cards.Length);
+            await removeCards(user, cards);
+            await addCards(user, cards.Length);
         }
 
-        public async Task SelectCard(MultiplayerRoomUser user, RankedPlayCard card)
+        public async Task PlayCard(MultiplayerRoomUser user, RankedPlayCardItem card)
         {
             if (state.Stage != RankedPlayStage.CardSelect)
                 return;
@@ -243,7 +255,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking
         {
             if (!ActivePlayerState.Hand.Any())
             {
-                await drawCards(ActivePlayer, 1);
+                await addCards(ActivePlayer, 1);
                 await stageFinishSelection(ActivePlayerState.Hand.Single());
             }
             else
@@ -259,13 +271,12 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking
         /// <remarks>
         /// Event flow continues at <see cref="HandleUserStateChanged"/>.
         /// </remarks>
-        private async Task stageFinishSelection(RankedPlayCard card)
+        private async Task stageFinishSelection(RankedPlayCardItem card)
         {
-            state.PlayedCard = card;
-            await hub.NotifyMatchRoomStateChanged(room);
-            await hub.NotifyRankedPlayCardRevealed(room, null, card);
+            activeCard = card;
+            await hub.NotifyRankedPlayCardRevealed(room, null, card, itemMap[card]);
 
-            room.Settings.PlaylistItemId = card.Item!.ID;
+            room.Settings.PlaylistItemId = itemMap[card].ID;
             await hub.NotifySettingsChanged(room, true);
             await eventLogger.LogMatchmakingGameplayBeatmapAsync(room.RoomID, room.Settings.PlaylistItemId);
 
@@ -344,19 +355,20 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking
         /// </summary>
         /// <param name="user">The user to draw cards for.</param>
         /// <param name="count">The maximum number of cards to draw from the deck.</param>
-        private async Task drawCards(MultiplayerRoomUser user, int count)
+        private async Task addCards(MultiplayerRoomUser user, int count)
         {
-            RankedPlayCard[] cards = state.Deck.Take(count).ToArray();
-            state.Deck = state.Deck.Except(cards).ToArray();
-            await hub.NotifyMatchRoomStateChanged(room);
+            RankedPlayCardItem[] cards = deck.Take(count).ToArray();
+            deck.RemoveRange(0, cards.Length);
 
             var userState = (RankedPlayUserState)user.MatchState!;
             userState.Hand = userState.Hand.Concat(cards).ToArray();
             await hub.NotifyMatchUserStateChanged(room, user);
 
-            // Always reveal drawn cards to the user holding them.
             foreach (var card in cards)
-                await hub.NotifyRankedPlayCardRevealed(room, user, card);
+            {
+                await hub.NotifyRankedPlayCardAdded(room, user, card);
+                await hub.NotifyRankedPlayCardRevealed(room, user, card, itemMap[card]);
+            }
         }
 
         /// <summary>
@@ -364,11 +376,14 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking
         /// </summary>
         /// <param name="user">The user to discard cards from.</param>
         /// <param name="cards">The cards to discard.</param>
-        private async Task discardCards(MultiplayerRoomUser user, RankedPlayCard[] cards)
+        private async Task removeCards(MultiplayerRoomUser user, RankedPlayCardItem[] cards)
         {
             var userState = (RankedPlayUserState)user.MatchState!;
             userState.Hand = userState.Hand.Except(cards).ToArray();
             await hub.NotifyMatchUserStateChanged(room, user);
+
+            foreach (var card in cards)
+                await hub.NotifyRankedPlayCardRemoved(room, user, card);
         }
 
         /// <summary>

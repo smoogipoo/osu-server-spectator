@@ -211,10 +211,28 @@ namespace osu.Server.Spectator.Tests.Multiplayer
                 await c.MatchmakingItemDeselected(userId, playlistItemId);
         }
 
-        public virtual async Task RankedPlayCardRevealed(RankedPlayCard card, MultiplayerPlaylistItem item)
+        public virtual async Task RankedPlayCardAdded(int userId, RankedPlayCardItem card)
+        {
+            foreach (var c in Clients.OfType<IRankedPlayClient>())
+                await c.RankedPlayCardAdded(userId, card);
+        }
+
+        public virtual async Task RankedPlayCardRemoved(int userId, RankedPlayCardItem card)
+        {
+            foreach (var c in Clients.OfType<IRankedPlayClient>())
+                await c.RankedPlayCardRemoved(userId, card);
+        }
+
+        public virtual async Task RankedPlayCardRevealed(RankedPlayCardItem card, MultiplayerPlaylistItem item)
         {
             foreach (var c in Clients.OfType<IRankedPlayClient>())
                 await c.RankedPlayCardRevealed(card, item);
+        }
+
+        public virtual async Task RankedPlayCardPlayed(RankedPlayCardItem card)
+        {
+            foreach (var c in Clients.OfType<IRankedPlayClient>())
+                await c.RankedPlayCardPlayed(card);
         }
 
         public Task SendCoreAsync(string method, object?[] args, CancellationToken cancellationToken = new CancellationToken())

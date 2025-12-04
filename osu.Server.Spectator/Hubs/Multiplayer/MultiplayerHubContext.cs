@@ -417,12 +417,27 @@ namespace osu.Server.Spectator.Hubs.Multiplayer
                 await context.Clients.Group(MultiplayerHub.GetGroupId(room.RoomID)).SendAsync(nameof(IMultiplayerClient.VoteToSkipIntroPassed));
         }
 
-        public async Task NotifyRankedPlayCardRevealed(ServerMultiplayerRoom room, MultiplayerRoomUser? user, RankedPlayCard card)
+        public async Task NotifyRankedPlayCardAdded(ServerMultiplayerRoom room, MultiplayerRoomUser user, RankedPlayCardItem card)
+        {
+            await context.Clients.Group(MultiplayerHub.GetGroupId(room.RoomID)).SendAsync(nameof(IRankedPlayClient.RankedPlayCardAdded), user.UserID, card);
+        }
+
+        public async Task NotifyRankedPlayCardRemoved(ServerMultiplayerRoom room, MultiplayerRoomUser user, RankedPlayCardItem card)
+        {
+            await context.Clients.Group(MultiplayerHub.GetGroupId(room.RoomID)).SendAsync(nameof(IRankedPlayClient.RankedPlayCardRemoved), user.UserID, card);
+        }
+
+        public async Task NotifyRankedPlayCardRevealed(ServerMultiplayerRoom room, MultiplayerRoomUser? user, RankedPlayCardItem card, MultiplayerPlaylistItem item)
         {
             if (user != null)
-                await context.Clients.User(user.UserID.ToString()).SendAsync(nameof(IRankedPlayClient.RankedPlayCardRevealed), card, card.Item);
+                await context.Clients.User(user.UserID.ToString()).SendAsync(nameof(IRankedPlayClient.RankedPlayCardRevealed), card, item);
             else
-                await context.Clients.Group(MultiplayerHub.GetGroupId(room.RoomID)).SendAsync(nameof(IRankedPlayClient.RankedPlayCardRevealed), card, card.Item);
+                await context.Clients.Group(MultiplayerHub.GetGroupId(room.RoomID)).SendAsync(nameof(IRankedPlayClient.RankedPlayCardRevealed), card, item);
+        }
+
+        public async Task NotifyRankedPlayCardPlayed(ServerMultiplayerRoom room, RankedPlayCardItem card)
+        {
+            await context.Clients.Group(MultiplayerHub.GetGroupId(room.RoomID)).SendAsync(nameof(IRankedPlayClient.RankedPlayCardPlayed), card);
         }
 
         public void Log(ServerMultiplayerRoom room, MultiplayerRoomUser? user, string message, LogLevel logLevel = LogLevel.Information)

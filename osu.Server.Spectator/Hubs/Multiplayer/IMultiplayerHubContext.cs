@@ -153,7 +153,13 @@ namespace osu.Server.Spectator.Hubs.Multiplayer
 
         Task CheckVotesToSkipPassed(ServerMultiplayerRoom room);
 
-        Task NotifyRankedPlayCardRevealed(ServerMultiplayerRoom room, MultiplayerRoomUser? user, RankedPlayCard card);
+        Task NotifyRankedPlayCardAdded(ServerMultiplayerRoom room, MultiplayerRoomUser user, RankedPlayCardItem card);
+
+        Task NotifyRankedPlayCardRemoved(ServerMultiplayerRoom room, MultiplayerRoomUser user, RankedPlayCardItem card);
+
+        Task NotifyRankedPlayCardRevealed(ServerMultiplayerRoom room, MultiplayerRoomUser? user, RankedPlayCardItem card, MultiplayerPlaylistItem item);
+
+        Task NotifyRankedPlayCardPlayed(ServerMultiplayerRoom room, RankedPlayCardItem card);
 
         void Log(ServerMultiplayerRoom room, MultiplayerRoomUser? user, string message, LogLevel logLevel = LogLevel.Information);
 

@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Moq;
 using osu.Game.Online.Multiplayer;
@@ -63,36 +64,81 @@ namespace osu.Server.Spectator.Tests.Matchmaking
                 }
             ]));
 
+            var room = Rooms.GetEntityUnsafe(ROOM_ID)!;
+            Assert.IsType<RankedPlayRoomState>(Rooms.GetEntityUnsafe(ROOM_ID)!.MatchState);
+            var roomState = (RankedPlayRoomState)room.MatchState!;
+
             await verifyStage(RankedPlayStage.WaitForJoin);
 
             // Join the first user.
-            await Hub.JoinRoom(ROOM_ID);
-            Receiver.Verify(u => u.RankedPlayCardRevealed(It.IsAny<RankedPlayCard>(), It.IsAny<MultiplayerPlaylistItem>()), Times.Never);
-            UserReceiver.Verify(u => u.RankedPlayCardRevealed(It.IsAny<RankedPlayCard>(), It.IsAny<MultiplayerPlaylistItem>()), Times.Exactly(5));
 
+            await Hub.JoinRoom(ROOM_ID);
+            var userState = (RankedPlayUserState)room.Users[0].MatchState!;
+            Assert.Equal(5, userState.Hand.Length);
+            Assert.Equal(15, roomState.Deck.Length);
+            UserReceiver.Verify(u => u.RankedPlayCardRevealed(It.IsAny<RankedPlayCardItem>(), It.IsAny<MultiplayerPlaylistItem>()), Times.Exactly(5));
             UserReceiver.Invocations.Clear();
             await verifyStage(RankedPlayStage.WaitForJoin);
 
             // Join the second user.
+
             SetUserContext(ContextUser2);
             await Hub.JoinRoom(ROOM_ID);
-            Receiver.Verify(u => u.RankedPlayCardRevealed(It.IsAny<RankedPlayCard>(), It.IsAny<MultiplayerPlaylistItem>()), Times.Never);
-            UserReceiver.Verify(u => u.RankedPlayCardRevealed(It.IsAny<RankedPlayCard>(), It.IsAny<MultiplayerPlaylistItem>()), Times.Never);
-            User2Receiver.Verify(u => u.RankedPlayCardRevealed(It.IsAny<RankedPlayCard>(), It.IsAny<MultiplayerPlaylistItem>()), Times.Exactly(5));
-
-            Receiver.Invocations.Clear();
+            var userState2 = (RankedPlayUserState)room.Users[1].MatchState!;
+            Assert.Equal(5, userState2.Hand.Length);
+            Assert.Equal(10, roomState.Deck.Length);
+            UserReceiver.Verify(u => u.RankedPlayCardRevealed(It.IsAny<RankedPlayCardItem>(), It.IsAny<MultiplayerPlaylistItem>()), Times.Never);
             UserReceiver.Invocations.Clear();
+            User2Receiver.Verify(u => u.RankedPlayCardRevealed(It.IsAny<RankedPlayCardItem>(), It.IsAny<MultiplayerPlaylistItem>()), Times.Exactly(5));
             User2Receiver.Invocations.Clear();
 
+            // Warmup stage.
+
             await verifyStage(RankedPlayStage.RoundWarmup);
+            Assert.True(roomState.ActivePlayerIndex >= 0);
+
+            // Discard stage.
 
             await gotoNextStage();
             await verifyStage(RankedPlayStage.CardDiscard);
 
-            SetUserContext(ContextUser);
+            // First user discards two cards.
 
-            Receiver.Invocations.Clear();
+            SetUserContext(ContextUser);
+            var response = await Hub.DiscardCards(userState.Hand.Take(2).ToArray());
+            Assert.Equal(2, response.Discarded.Length);
+            Assert.True(!response.Discarded.All(userState.Hand.Contains));
+            Assert.Equal(2, response.Drawn.Length);
+            Assert.True(response.Drawn.All(userState.Hand.Contains));
+            Assert.Equal(5, userState.Hand.Length);
+            UserReceiver.Verify(u => u.RankedPlayCardRevealed(It.IsAny<RankedPlayCardItem>(), It.IsAny<MultiplayerPlaylistItem>()), Times.Exactly(2));
+            UserReceiver.Invocations.Clear();
+            User2Receiver.Verify(u => u.RankedPlayCardRevealed(It.IsAny<RankedPlayCardItem>(), It.IsAny<MultiplayerPlaylistItem>()), Times.Never);
+            User2Receiver.Invocations.Clear();
+
+            // Second user discards no cards.
+
+            SetUserContext(ContextUser2);
+            response = await Hub.DiscardCards([]);
+            Assert.Equal(0, response.Discarded.Length);
+            Assert.Equal(0, response.Drawn.Length);
+
+            // Both players have finished discarding
+
+            await verifyStage(RankedPlayStage.FinishCardDiscard);
             await gotoNextStage();
+
+            // Select stage.
+
+            await verifyStage(RankedPlayStage.CardSelect);
+
+            // Active player plays a card.
+            SetUserContext(roomState.ActivePlayerIndex switch
+            {
+                0 => ContextUser,
+                _ => ContextUser2,
+            });
+            await Hub.PlayCard(userState.Hand[0]);
 
             await verifyStage(RankedPlayStage.Ended);
         }
