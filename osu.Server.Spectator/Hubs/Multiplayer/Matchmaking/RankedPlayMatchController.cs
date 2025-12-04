@@ -29,6 +29,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking
 
         private const int stage_round_warmup_time = 15;
         private const int stage_discard_time = 30;
+        private const int stage_finish_discard_time = 10;
         private const int stage_select_time = 30;
         private const int stage_gameplay_warmup_time = 5;
         private const int stage_gameplay_time = 0;
@@ -169,7 +170,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking
         {
             switch (state.Stage)
             {
-                case RankedPlayStage.FinishSelection:
+                case RankedPlayStage.FinishCardPlay:
                     if (allUsersReady())
                         await stageGameplayWarmup(room);
                     break;
@@ -199,11 +200,14 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking
 
             await removeCards(user, cards);
             await addCards(user, cards.Length);
+
+            if (userCardsDiscarded.Count == room.Users.Count)
+                await stageFinishDiscard(room);
         }
 
         public async Task PlayCard(MultiplayerRoomUser user, RankedPlayCardItem card)
         {
-            if (state.Stage != RankedPlayStage.CardSelect)
+            if (state.Stage != RankedPlayStage.CardPlay)
                 return;
 
             if (user.UserID != ActivePlayer.UserID)
@@ -245,7 +249,13 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking
         private async Task stageCardDiscard(ServerMultiplayerRoom _)
         {
             await changeStage(RankedPlayStage.CardDiscard);
-            await startCountdown(TimeSpan.FromSeconds(stage_discard_time), stageCardSelect);
+            await startCountdown(TimeSpan.FromSeconds(stage_discard_time), stageFinishDiscard);
+        }
+
+        private async Task stageFinishDiscard(ServerMultiplayerRoom _)
+        {
+            await changeStage(RankedPlayStage.FinishCardDiscard);
+            await startCountdown(TimeSpan.FromSeconds(stage_finish_discard_time), stageCardSelect);
         }
 
         /// <summary>
@@ -260,7 +270,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking
             }
             else
             {
-                await changeStage(RankedPlayStage.CardSelect);
+                await changeStage(RankedPlayStage.CardPlay);
                 await startCountdown(TimeSpan.FromSeconds(stage_select_time), _ => stageFinishSelection(ActivePlayerState.Hand.First()));
             }
         }
@@ -280,7 +290,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking
             await hub.NotifySettingsChanged(room, true);
             await eventLogger.LogMatchmakingGameplayBeatmapAsync(room.RoomID, room.Settings.PlaylistItemId);
 
-            await changeStage(RankedPlayStage.FinishSelection);
+            await changeStage(RankedPlayStage.FinishCardPlay);
         }
 
         /// <summary>

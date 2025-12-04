@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.SignalR;
 using Moq;
 using osu.Game.Online.Multiplayer;
 using osu.Game.Online.Multiplayer.MatchTypes.RankedPlay;
@@ -55,12 +56,12 @@ namespace osu.Server.Spectator.Tests.Matchmaking
                 new SoloScore
                 {
                     user_id = USER_ID,
-                    total_score = 10
+                    total_score = 800_000
                 },
                 new SoloScore
                 {
                     user_id = USER_ID_2,
-                    total_score = 5
+                    total_score = 500_000
                 }
             ]));
 
@@ -72,25 +73,27 @@ namespace osu.Server.Spectator.Tests.Matchmaking
 
             // Join the first user.
 
+            UserReceiver.Invocations.Clear();
+
             await Hub.JoinRoom(ROOM_ID);
+
             var userState = (RankedPlayUserState)room.Users[0].MatchState!;
             Assert.Equal(5, userState.Hand.Length);
-            Assert.Equal(15, roomState.Deck.Length);
             UserReceiver.Verify(u => u.RankedPlayCardRevealed(It.IsAny<RankedPlayCardItem>(), It.IsAny<MultiplayerPlaylistItem>()), Times.Exactly(5));
-            UserReceiver.Invocations.Clear();
             await verifyStage(RankedPlayStage.WaitForJoin);
 
             // Join the second user.
 
+            UserReceiver.Invocations.Clear();
+            User2Receiver.Invocations.Clear();
+
             SetUserContext(ContextUser2);
             await Hub.JoinRoom(ROOM_ID);
+
             var userState2 = (RankedPlayUserState)room.Users[1].MatchState!;
             Assert.Equal(5, userState2.Hand.Length);
-            Assert.Equal(10, roomState.Deck.Length);
             UserReceiver.Verify(u => u.RankedPlayCardRevealed(It.IsAny<RankedPlayCardItem>(), It.IsAny<MultiplayerPlaylistItem>()), Times.Never);
-            UserReceiver.Invocations.Clear();
             User2Receiver.Verify(u => u.RankedPlayCardRevealed(It.IsAny<RankedPlayCardItem>(), It.IsAny<MultiplayerPlaylistItem>()), Times.Exactly(5));
-            User2Receiver.Invocations.Clear();
 
             // Warmup stage.
 
@@ -104,43 +107,103 @@ namespace osu.Server.Spectator.Tests.Matchmaking
 
             // First user discards two cards.
 
-            SetUserContext(ContextUser);
-            var response = await Hub.DiscardCards(userState.Hand.Take(2).ToArray());
-            Assert.Equal(2, response.Discarded.Length);
-            Assert.True(!response.Discarded.All(userState.Hand.Contains));
-            Assert.Equal(2, response.Drawn.Length);
-            Assert.True(response.Drawn.All(userState.Hand.Contains));
-            Assert.Equal(5, userState.Hand.Length);
-            UserReceiver.Verify(u => u.RankedPlayCardRevealed(It.IsAny<RankedPlayCardItem>(), It.IsAny<MultiplayerPlaylistItem>()), Times.Exactly(2));
+            Receiver.Invocations.Clear();
             UserReceiver.Invocations.Clear();
-            User2Receiver.Verify(u => u.RankedPlayCardRevealed(It.IsAny<RankedPlayCardItem>(), It.IsAny<MultiplayerPlaylistItem>()), Times.Never);
             User2Receiver.Invocations.Clear();
+
+            SetUserContext(ContextUser);
+            await Hub.DiscardCards(userState.Hand.Take(2).ToArray());
+
+            Receiver.Verify(u => u.RankedPlayCardRemoved(USER_ID, It.IsAny<RankedPlayCardItem>()), Times.Exactly(2));
+            Receiver.Verify(u => u.RankedPlayCardAdded(USER_ID, It.IsAny<RankedPlayCardItem>()), Times.Exactly(2));
+            UserReceiver.Verify(u => u.RankedPlayCardRevealed(It.IsAny<RankedPlayCardItem>(), It.IsAny<MultiplayerPlaylistItem>()), Times.Exactly(2));
+            User2Receiver.Verify(u => u.RankedPlayCardRevealed(It.IsAny<RankedPlayCardItem>(), It.IsAny<MultiplayerPlaylistItem>()), Times.Never);
 
             // Second user discards no cards.
 
-            SetUserContext(ContextUser2);
-            response = await Hub.DiscardCards([]);
-            Assert.Equal(0, response.Discarded.Length);
-            Assert.Equal(0, response.Drawn.Length);
+            Receiver.Invocations.Clear();
 
-            // Both players have finished discarding
+            SetUserContext(ContextUser2);
+            await Hub.DiscardCards([]);
+            Receiver.Verify(u => u.RankedPlayCardRemoved(USER_ID_2, It.IsAny<RankedPlayCardItem>()), Times.Never);
+            Receiver.Verify(u => u.RankedPlayCardAdded(USER_ID_2, It.IsAny<RankedPlayCardItem>()), Times.Never);
+
+            // Both players have finished discarding.
 
             await verifyStage(RankedPlayStage.FinishCardDiscard);
             await gotoNextStage();
 
             // Select stage.
 
-            await verifyStage(RankedPlayStage.CardSelect);
+            await verifyStage(RankedPlayStage.CardPlay);
 
             // Active player plays a card.
-            SetUserContext(roomState.ActivePlayerIndex switch
-            {
-                0 => ContextUser,
-                _ => ContextUser2,
-            });
-            await Hub.PlayCard(userState.Hand[0]);
 
-            await verifyStage(RankedPlayStage.Ended);
+            (Mock<HubCallerContext> context, RankedPlayUserState state, MultiplayerRoomUser user) activePlayer = roomState.ActivePlayerIndex switch
+            {
+                0 => (ContextUser, userState, room.Users[0]),
+                _ => (ContextUser2, userState2, room.Users[1]),
+            };
+
+            RankedPlayCardItem activeCard = activePlayer.state.Hand[0];
+
+            SetUserContext(activePlayer.context);
+            await Hub.PlayCard(activeCard);
+
+            // Player has finished selecting.
+
+            await verifyStage(RankedPlayStage.FinishCardPlay);
+
+            SetUserContext(ContextUser);
+            await Hub.ChangeState(MultiplayerUserState.Ready);
+            await Hub.ChangeBeatmapAvailability(BeatmapAvailability.LocallyAvailable());
+            SetUserContext(ContextUser2);
+            await Hub.ChangeState(MultiplayerUserState.Ready);
+            await Hub.ChangeBeatmapAvailability(BeatmapAvailability.LocallyAvailable());
+
+            // Both players have downloaded the beatmap and readied up.
+
+            await verifyStage(RankedPlayStage.GameplayWarmup);
+            await gotoNextStage();
+
+            // Start gameplay for both users.
+
+            await verifyStage(RankedPlayStage.Gameplay);
+            await gotoNextStage();
+
+            SetUserContext(ContextUser);
+            await Hub.ChangeState(MultiplayerUserState.Loaded);
+            await Hub.ChangeState(MultiplayerUserState.ReadyForGameplay);
+            SetUserContext(ContextUser2);
+            await Hub.ChangeState(MultiplayerUserState.Loaded);
+            await Hub.ChangeState(MultiplayerUserState.ReadyForGameplay);
+
+            // End gameplay for both users
+
+            Receiver.Invocations.Clear();
+
+            SetUserContext(ContextUser);
+            await Hub.AbortGameplay();
+            SetUserContext(ContextUser2);
+            await Hub.AbortGameplay();
+
+            // Results stage.
+
+            await verifyStage(RankedPlayStage.Results);
+
+            Assert.Equal(1_000_000, userState.Life);
+            Assert.Equal(700_000, userState2.Life);
+            Receiver.Verify(u => u.RankedPlayCardRemoved(activePlayer.user.UserID, activeCard), Times.Once);
+
+            // Next round.
+
+            await gotoNextStage();
+            await verifyStage(RankedPlayStage.RoundWarmup);
+
+            // No discard stage in the second round.
+
+            await gotoNextStage();
+            await verifyStage(RankedPlayStage.CardPlay);
         }
 
         private async Task verifyStage(RankedPlayStage stage)
@@ -185,11 +248,11 @@ namespace osu.Server.Spectator.Tests.Matchmaking
                         await gotoNextStage();
                         break;
 
-                    case RankedPlayStage.CardSelect:
+                    case RankedPlayStage.CardPlay:
                         await gotoNextStage();
                         break;
 
-                    case RankedPlayStage.FinishSelection:
+                    case RankedPlayStage.FinishCardPlay:
                         SetUserContext(ContextUser);
                         await Hub.ChangeState(MultiplayerUserState.Ready);
                         await Hub.ChangeBeatmapAvailability(BeatmapAvailability.LocallyAvailable());
