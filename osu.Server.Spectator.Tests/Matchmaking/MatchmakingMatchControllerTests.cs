@@ -18,9 +18,9 @@ using Xunit;
 
 namespace osu.Server.Spectator.Tests.Matchmaking
 {
-    public class QuickPlayMatchControllerTests : MultiplayerTest, IAsyncLifetime
+    public class MatchmakingMatchControllerTests : MultiplayerTest, IAsyncLifetime
     {
-        public QuickPlayMatchControllerTests()
+        public MatchmakingMatchControllerTests()
         {
             AppSettings.MatchmakingRoomRounds = 2;
             AppSettings.MatchmakingRoomAllowSkip = true;
@@ -390,12 +390,12 @@ namespace osu.Server.Spectator.Tests.Matchmaking
 
         private async Task gotoNextStage()
         {
-            QuickPlayMatchController controller;
+            MatchmakingMatchController controller;
 
             using (var room = await Rooms.GetForUse(ROOM_ID))
             {
                 Assert.NotNull(room.Item);
-                controller = (QuickPlayMatchController)room.Item.Controller;
+                controller = (MatchmakingMatchController)room.Item.Controller;
             }
 
             controller.SkipToNextStage(out Task countdownTask);

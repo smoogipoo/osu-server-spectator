@@ -114,7 +114,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer
             switch (type)
             {
                 case MatchType.Matchmaking:
-                    return ChangeMatchType(new QuickPlayMatchController(this, hub, dbFactory, eventLogger));
+                    return ChangeMatchType(new MatchmakingMatchController(this, hub, dbFactory, eventLogger));
 
                 case MatchType.RankedPlay:
                     return ChangeMatchType(new RankedPlayMatchController(this, hub, dbFactory, eventLogger));
