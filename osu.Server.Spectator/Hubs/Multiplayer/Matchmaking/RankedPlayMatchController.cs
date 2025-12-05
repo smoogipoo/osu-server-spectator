@@ -285,6 +285,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking
         {
             activeCard = card;
             await hub.NotifyRankedPlayCardRevealed(room, null, card, itemMap[card]);
+            await hub.NotifyRankedPlayCardPlayed(room, card);
 
             room.Settings.PlaylistItemId = itemMap[card].ID;
             await hub.NotifySettingsChanged(room, true);

@@ -76,8 +76,8 @@ namespace osu.Server.Spectator.Tests.Matchmaking
             UserReceiver.Invocations.Clear();
 
             await Hub.JoinRoom(ROOM_ID);
-
             var userState = (RankedPlayUserState)room.Users[0].MatchState!;
+
             Assert.Equal(5, userState.Hand.Length);
             UserReceiver.Verify(u => u.RankedPlayCardRevealed(It.IsAny<RankedPlayCardItem>(), It.IsAny<MultiplayerPlaylistItem>()), Times.Exactly(5));
             await verifyStage(RankedPlayStage.WaitForJoin);
@@ -89,8 +89,8 @@ namespace osu.Server.Spectator.Tests.Matchmaking
 
             SetUserContext(ContextUser2);
             await Hub.JoinRoom(ROOM_ID);
-
             var userState2 = (RankedPlayUserState)room.Users[1].MatchState!;
+
             Assert.Equal(5, userState2.Hand.Length);
             UserReceiver.Verify(u => u.RankedPlayCardRevealed(It.IsAny<RankedPlayCardItem>(), It.IsAny<MultiplayerPlaylistItem>()), Times.Never);
             User2Receiver.Verify(u => u.RankedPlayCardRevealed(It.IsAny<RankedPlayCardItem>(), It.IsAny<MultiplayerPlaylistItem>()), Times.Exactly(5));
@@ -125,6 +125,7 @@ namespace osu.Server.Spectator.Tests.Matchmaking
 
             SetUserContext(ContextUser2);
             await Hub.DiscardCards([]);
+
             Receiver.Verify(u => u.RankedPlayCardRemoved(USER_ID_2, It.IsAny<RankedPlayCardItem>()), Times.Never);
             Receiver.Verify(u => u.RankedPlayCardAdded(USER_ID_2, It.IsAny<RankedPlayCardItem>()), Times.Never);
 
@@ -139,6 +140,8 @@ namespace osu.Server.Spectator.Tests.Matchmaking
 
             // Active player plays a card.
 
+            Receiver.Invocations.Clear();
+
             (Mock<HubCallerContext> context, RankedPlayUserState state, MultiplayerRoomUser user) activePlayer = roomState.ActivePlayerIndex switch
             {
                 0 => (ContextUser, userState, room.Users[0]),
@@ -149,6 +152,8 @@ namespace osu.Server.Spectator.Tests.Matchmaking
 
             SetUserContext(activePlayer.context);
             await Hub.PlayCard(activeCard);
+
+            Receiver.Verify(u => u.RankedPlayCardPlayed(activeCard), Times.Once);
 
             // Player has finished selecting.
 
