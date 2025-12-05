@@ -211,6 +211,29 @@ namespace osu.Server.Spectator.Tests.Matchmaking
             await verifyStage(RankedPlayStage.CardPlay);
         }
 
+        [Fact]
+        public async Task OnlyActivePlayerCanPlayCard()
+        {
+            var room = Rooms.GetEntityUnsafe(ROOM_ID)!;
+            var roomState = (RankedPlayRoomState)room.MatchState!;
+
+            await Hub.JoinRoom(ROOM_ID);
+
+            SetUserContext(ContextUser2);
+            await Hub.JoinRoom(ROOM_ID);
+
+            await gotoStage(RankedPlayStage.CardPlay);
+
+            (Mock<HubCallerContext> context, RankedPlayUserState state) inactivePlayer = roomState.ActivePlayerIndex switch
+            {
+                0 => (ContextUser2, (RankedPlayUserState)room.Users[1].MatchState!),
+                _ => (ContextUser, (RankedPlayUserState)room.Users[0].MatchState!),
+            };
+
+            SetUserContext(inactivePlayer.context);
+            await Assert.ThrowsAsync<InvalidStateException>(() => Hub.PlayCard(inactivePlayer.state.Hand[0]));
+        }
+
         private async Task verifyStage(RankedPlayStage stage)
         {
             using (var room = await Rooms.GetForUse(ROOM_ID))
@@ -245,11 +268,19 @@ namespace osu.Server.Spectator.Tests.Matchmaking
 
                 switch (currentStage)
                 {
+                    case RankedPlayStage.RoundWarmup:
+                        await gotoNextStage();
+                        break;
+
                     case RankedPlayStage.WaitForJoin:
                         await gotoNextStage();
                         break;
 
                     case RankedPlayStage.CardDiscard:
+                        await gotoNextStage();
+                        break;
+
+                    case RankedPlayStage.FinishCardDiscard:
                         await gotoNextStage();
                         break;
 
