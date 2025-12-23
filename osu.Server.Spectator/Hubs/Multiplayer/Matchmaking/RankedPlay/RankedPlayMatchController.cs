@@ -18,7 +18,7 @@ using osu.Server.Spectator.Database;
 using osu.Server.Spectator.Database.Models;
 using osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.Elo;
 
-namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking
+namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.RankedPlay
 {
     [NonController]
     public class RankedPlayMatchController : IMatchController, IMatchmakingMatchController
