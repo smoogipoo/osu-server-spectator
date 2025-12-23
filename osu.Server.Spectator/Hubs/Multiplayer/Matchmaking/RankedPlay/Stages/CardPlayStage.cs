@@ -48,6 +48,9 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.RankedPlay.Stages
             if (!State.Users[user.UserID].Hand.Contains(card))
                 throw new InvalidStateException("Card not in the hand.");
 
+            if (playedCard != null)
+                return;
+
             playedCard = card;
 
             await Finish();
