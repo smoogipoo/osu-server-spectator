@@ -35,7 +35,6 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.RankedPlay.Stages
 
             Room.Settings.PlaylistItemId = Controller.ItemMap[playedCard].ID;
             await Hub.NotifySettingsChanged(Room, true);
-            await EventLogger.LogMatchmakingGameplayBeatmapAsync(Room.RoomID, Room.Settings.PlaylistItemId);
 
             await Controller.GotoStage(RankedPlayStage.FinishCardPlay);
         }
@@ -52,7 +51,6 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.RankedPlay.Stages
                 return;
 
             playedCard = card;
-
             await Finish();
         }
     }

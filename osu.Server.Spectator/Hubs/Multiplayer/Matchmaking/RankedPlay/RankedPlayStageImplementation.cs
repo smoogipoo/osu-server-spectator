@@ -12,7 +12,14 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.RankedPlay
 {
     public abstract class RankedPlayStageImplementation
     {
+        /// <summary>
+        /// The stage which this implementation implements.
+        /// </summary>
         protected abstract RankedPlayStage Stage { get; }
+
+        /// <summary>
+        /// The duration of this stage, before <see cref="Finish"/> is invoked.
+        /// </summary>
         protected abstract TimeSpan Duration { get; }
 
         protected ServerMultiplayerRoom Room => Controller.Room;
@@ -28,6 +35,9 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.RankedPlay
             Controller = controller;
         }
 
+        /// <summary>
+        /// Enters this stage.
+        /// </summary>
         public async Task Enter()
         {
             State.Stage = Stage;
@@ -37,6 +47,9 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.RankedPlay
             await FinishWithCountdown(Duration);
         }
 
+        /// <summary>
+        /// Invokes <see cref="Finish"/> after a delay.
+        /// </summary>
         protected async Task FinishWithCountdown(TimeSpan duration)
         {
             await Room.StartCountdown(new RankedPlayStageCountdown
@@ -46,8 +59,14 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.RankedPlay
             }, async _ => await Finish());
         }
 
+        /// <summary>
+        /// Handles the initial actions when this stage is entered.
+        /// </summary>
         protected abstract Task Begin();
 
+        /// <summary>
+        /// Handles any actions after the countdown timer runs out.
+        /// </summary>
         protected abstract Task Finish();
 
         public virtual Task HandleUserJoined(MultiplayerRoomUser user)

@@ -19,9 +19,10 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.RankedPlay.Stages
         protected override RankedPlayStage Stage => RankedPlayStage.FinishCardPlay;
         protected override TimeSpan Duration => TimeSpan.MaxValue;
 
-        protected override Task Begin()
+        protected override async Task Begin()
         {
-            return Task.CompletedTask;
+            // Reset ready states.
+            await Hub.NotifySettingsChanged(Room, true);
         }
 
         protected override async Task Finish()
