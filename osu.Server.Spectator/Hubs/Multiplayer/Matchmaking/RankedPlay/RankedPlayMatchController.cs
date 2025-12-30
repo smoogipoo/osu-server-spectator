@@ -82,7 +82,12 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.RankedPlay
             PoolId = poolId;
 
             foreach (var user in users)
-                State.Users[user.UserId] = new RankedPlayUserInfo();
+            {
+                State.Users[user.UserId] = new RankedPlayUserInfo
+                {
+                    Rating = (int)Math.Round(user.Rating.Mu)
+                };
+            }
 
             return Task.CompletedTask;
         }
