@@ -33,9 +33,19 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.RankedPlay
         public readonly MultiplayerEventLogger EventLogger;
         public readonly RankedPlayRoomState State;
 
+        /// <summary>
+        /// The card that was last activated by any user.
+        /// </summary>
         public RankedPlayCardItem? LastActivatedCard { get; private set; }
 
+        /// <summary>
+        /// Mapping of cards to their associated effect.
+        /// </summary>
         private readonly Dictionary<RankedPlayCardItem, MultiplayerPlaylistItem> cardToEffectMap = [];
+
+        /// <summary>
+        /// Cards that may be drawn from the deck.
+        /// </summary>
         private readonly List<RankedPlayCardItem> deck = [];
 
         private RankedPlayStageImplementation stageImplementation;
@@ -240,6 +250,9 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.RankedPlay
 
             await Hub.NotifyRankedPlayCardRevealed(Room, null, card, effect);
             await Hub.NotifyRankedPlayCardPlayed(Room, card);
+
+            // Todo: If we ever have cards with non-"play beatmap" effects, then
+            //       this is the first responder to perform any relevant actions.
 
             using (var db = DbFactory.GetInstance())
             {
