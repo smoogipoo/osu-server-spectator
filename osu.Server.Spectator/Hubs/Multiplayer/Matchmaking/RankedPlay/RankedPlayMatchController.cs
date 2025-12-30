@@ -27,23 +27,16 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.RankedPlay
 
         public uint PoolId { get; private set; }
 
-        /// <summary>
-        /// Mapping from cards to their associated playlist item.
-        /// </summary>
-        public readonly Dictionary<RankedPlayCardItem, MultiplayerPlaylistItem> ItemMap = [];
-
-        /// <summary>
-        /// Mapping from playlist items to their associated card.
-        /// </summary>
-        public readonly Dictionary<long, RankedPlayCardItem> CardMap = [];
-
         public readonly ServerMultiplayerRoom Room;
         public readonly IMultiplayerHubContext Hub;
         public readonly IDatabaseFactory DbFactory;
         public readonly MultiplayerEventLogger EventLogger;
         public readonly RankedPlayRoomState State;
 
+        private readonly Dictionary<RankedPlayCardItem, MultiplayerPlaylistItem> cardToEffectMap = [];
+        private readonly Dictionary<MultiplayerPlaylistItem, RankedPlayCardItem> effectToCardMap = [];
         private readonly List<RankedPlayCardItem> deck = [];
+
         private RankedPlayStageImplementation stageImplementation;
 
         public RankedPlayMatchController(ServerMultiplayerRoom room, IMultiplayerHubContext hub, IDatabaseFactory dbFactory, MultiplayerEventLogger eventLogger)
@@ -54,18 +47,6 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.RankedPlay
             EventLogger = eventLogger;
             State = new RankedPlayRoomState();
             stageImplementation = new EmptyStage(this);
-
-            if (room.Playlist.Count < DECK_SIZE)
-                throw new InvalidOperationException($"There should be at least {DECK_SIZE} items in the playlist!");
-
-            foreach (var item in Random.Shared.GetItems(room.Playlist.ToArray(), room.Playlist.Count))
-            {
-                var card = new RankedPlayCardItem();
-                deck.Add(card);
-
-                ItemMap[card] = item;
-                CardMap[item.ID] = card;
-            }
 
             room.MatchState = State;
         }
@@ -80,18 +61,37 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.RankedPlay
         {
             PoolId = poolId;
 
-            using (var db = DbFactory.GetInstance())
+            // Build the deck.
+            matchmaking_pool_beatmap[] beatmaps = beatmapSelector.GetAppropriateBeatmaps(users.Select(u => u.Rating).ToArray());
+
+            if (beatmaps.Length < DECK_SIZE)
+                throw new InvalidOperationException($"There should be at least {DECK_SIZE} beatmaps, but only {beatmaps.Length} were selected.");
+
+            int effectId = 0;
+
+            foreach (var beatmap in Random.Shared.GetItems(beatmaps, beatmaps.Length))
             {
-                foreach (var beatmap in beatmapSelector.GetAppropriateBeatmaps(users.Select(u => u.Rating).ToArray()))
-                {
-                    MultiplayerPlaylistItem item = beatmap.ToPlaylistItem();
-                    item.ID = await db.AddPlaylistItemAsync(new multiplayer_playlist_item(Room.RoomID, item));
-                    Room.Playlist.Add(item);
-                }
+                var card = new RankedPlayCardItem();
+                var effect = beatmap.ToPlaylistItem();
+                effect.ID = ++effectId;
+
+                cardToEffectMap[card] = effect;
+                effectToCardMap[effect] = card;
+
+                deck.Add(card);
             }
 
-            Room.Settings.PlaylistItemId = Room.Playlist[Random.Shared.Next(0, Room.Playlist.Count)].ID;
+            // Create an initial playlist item for the room. Clients require this to operate correctly.
+            using (var db = DbFactory.GetInstance())
+            {
+                MultiplayerPlaylistItem initialItem = new MultiplayerPlaylistItem();
+                initialItem.ID = await db.AddPlaylistItemAsync(new multiplayer_playlist_item(Room.RoomID, initialItem));
 
+                Room.Playlist.Add(initialItem);
+                Room.Settings.PlaylistItemId = initialItem.ID;
+            }
+
+            // Create the user states.
             foreach (var user in users)
             {
                 State.Users[user.UserId] = new RankedPlayUserInfo
@@ -115,9 +115,12 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.RankedPlay
         {
             using (var db = DbFactory.GetInstance())
             {
-                // Expire and let clients know that the current item has finished.
                 await db.MarkPlaylistItemAsPlayedAsync(Room.RoomID, CurrentItem.ID);
-                Room.Playlist[Room.Playlist.IndexOf(CurrentItem)] = (await db.GetPlaylistItemAsync(Room.RoomID, CurrentItem.ID)).ToMultiplayerPlaylistItem();
+
+                multiplayer_playlist_item newItem = await db.GetPlaylistItemAsync(Room.RoomID, CurrentItem.ID);
+                CurrentItem.Expired = newItem.expired;
+                CurrentItem.PlayedAt = newItem.played_at;
+
                 await Hub.NotifyPlaylistItemChanged(Room, CurrentItem, true);
             }
 
@@ -212,7 +215,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.RankedPlay
             {
                 State.Users[userId].Hand.Add(card);
                 await Hub.NotifyRankedPlayCardAdded(Room, userId, card);
-                await Hub.NotifyRankedPlayCardRevealed(Room, userId, card, ItemMap[card]);
+                await Hub.NotifyRankedPlayCardRevealed(Room, userId, card, LookupEffect(card));
             }
 
             await Hub.NotifyMatchRoomStateChanged(Room);
@@ -234,9 +237,53 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.RankedPlay
             await Hub.NotifyMatchRoomStateChanged(Room);
         }
 
-        public async Task RemoveCards(int userId, long[] playlistItemIds)
+        /// <summary>
+        /// Activates the card, placing its effect on the room.
+        /// </summary>
+        public async Task ActivateCard(RankedPlayCardItem card)
         {
-            await RemoveCards(userId, playlistItemIds.Select(i => CardMap[i]).ToArray());
+            MultiplayerPlaylistItem effect = LookupEffect(card);
+
+            await Hub.NotifyRankedPlayCardRevealed(Room, null, card, effect);
+            await Hub.NotifyRankedPlayCardPlayed(Room, card);
+
+            using (var db = DbFactory.GetInstance())
+            {
+                if (CurrentItem.Expired)
+                {
+                    effect.ID = await db.AddPlaylistItemAsync(new multiplayer_playlist_item(Room.RoomID, effect));
+
+                    Room.Playlist.Add(effect);
+                    await Hub.NotifyPlaylistItemAdded(Room, effect);
+                }
+                else
+                {
+                    effect.ID = CurrentItem.ID;
+
+                    Room.Playlist[Room.Playlist.IndexOf(CurrentItem)] = effect;
+                    await db.UpdatePlaylistItemAsync(new multiplayer_playlist_item(Room.RoomID, effect));
+                    await Hub.NotifyPlaylistItemChanged(Room, effect, true);
+                }
+            }
+
+            Room.Settings.PlaylistItemId = effect.ID;
+            await Hub.NotifySettingsChanged(Room, true);
+        }
+
+        /// <summary>
+        /// Looks up the effect for a given card.
+        /// </summary>
+        public MultiplayerPlaylistItem LookupEffect(RankedPlayCardItem card)
+        {
+            return cardToEffectMap[card];
+        }
+
+        /// <summary>
+        /// Looks up the card for a given effect.
+        /// </summary>
+        public RankedPlayCardItem LookupCard(MultiplayerPlaylistItem effect)
+        {
+            return effectToCardMap[effect];
         }
 
         public MatchStartedEventDetail GetMatchDetails() => new MatchStartedEventDetail

@@ -25,7 +25,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.RankedPlay.Stages
 
         protected override async Task Finish()
         {
-            await Controller.RemoveCards(State.ActiveUserId, [Room.Settings.PlaylistItemId]);
+            await Controller.RemoveCards(State.ActiveUserId, [Controller.LookupCard(Controller.CurrentItem)]);
             await Controller.GotoStage(RankedPlayStage.Results);
         }
 
