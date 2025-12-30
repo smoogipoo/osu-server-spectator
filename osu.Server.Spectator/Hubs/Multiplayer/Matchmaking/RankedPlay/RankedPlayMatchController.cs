@@ -68,7 +68,6 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.RankedPlay
             }
 
             room.MatchState = State;
-            room.Settings.PlaylistItemId = room.Playlist[Random.Shared.Next(0, room.Playlist.Count)].ID;
         }
 
         async Task IMatchController.Initialise()
@@ -77,9 +76,21 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.RankedPlay
             await GotoStage(RankedPlayStage.WaitForJoin);
         }
 
-        Task IMatchmakingMatchController.Initialise(uint poolId, MatchmakingQueueUser[] users)
+        async Task IMatchmakingMatchController.Initialise(uint poolId, MatchmakingQueueUser[] users, MatchmakingBeatmapSelector beatmapSelector)
         {
             PoolId = poolId;
+
+            using (var db = DbFactory.GetInstance())
+            {
+                foreach (var beatmap in beatmapSelector.GetAppropriateBeatmaps(users.Select(u => u.Rating).ToArray()))
+                {
+                    MultiplayerPlaylistItem item = beatmap.ToPlaylistItem();
+                    item.ID = await db.AddPlaylistItemAsync(new multiplayer_playlist_item(Room.RoomID, item));
+                    Room.Playlist.Add(item);
+                }
+            }
+
+            Room.Settings.PlaylistItemId = Room.Playlist[Random.Shared.Next(0, Room.Playlist.Count)].ID;
 
             foreach (var user in users)
             {
@@ -88,8 +99,6 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.RankedPlay
                     Rating = (int)Math.Round(user.Rating.Mu)
                 };
             }
-
-            return Task.CompletedTask;
         }
 
         Task<bool> IMatchController.UserCanJoin(int userId)
