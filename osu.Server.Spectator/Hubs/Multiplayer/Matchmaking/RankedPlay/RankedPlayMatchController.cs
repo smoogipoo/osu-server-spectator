@@ -33,8 +33,9 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.RankedPlay
         public readonly MultiplayerEventLogger EventLogger;
         public readonly RankedPlayRoomState State;
 
+        public RankedPlayCardItem? LastActivatedCard { get; private set; }
+
         private readonly Dictionary<RankedPlayCardItem, MultiplayerPlaylistItem> cardToEffectMap = [];
-        private readonly Dictionary<MultiplayerPlaylistItem, RankedPlayCardItem> effectToCardMap = [];
         private readonly List<RankedPlayCardItem> deck = [];
 
         private RankedPlayStageImplementation stageImplementation;
@@ -67,17 +68,10 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.RankedPlay
             if (beatmaps.Length < DECK_SIZE)
                 throw new InvalidOperationException($"There should be at least {DECK_SIZE} beatmaps, but only {beatmaps.Length} were selected.");
 
-            int effectId = 0;
-
             foreach (var beatmap in Random.Shared.GetItems(beatmaps, beatmaps.Length))
             {
                 var card = new RankedPlayCardItem();
-                var effect = beatmap.ToPlaylistItem();
-                effect.ID = ++effectId;
-
-                cardToEffectMap[card] = effect;
-                effectToCardMap[effect] = card;
-
+                cardToEffectMap[card] = beatmap.ToPlaylistItem();
                 deck.Add(card);
             }
 
@@ -215,7 +209,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.RankedPlay
             {
                 State.Users[userId].Hand.Add(card);
                 await Hub.NotifyRankedPlayCardAdded(Room, userId, card);
-                await Hub.NotifyRankedPlayCardRevealed(Room, userId, card, LookupEffect(card));
+                await Hub.NotifyRankedPlayCardRevealed(Room, userId, card, cardToEffectMap[card]);
             }
 
             await Hub.NotifyMatchRoomStateChanged(Room);
@@ -242,7 +236,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.RankedPlay
         /// </summary>
         public async Task ActivateCard(RankedPlayCardItem card)
         {
-            MultiplayerPlaylistItem effect = LookupEffect(card);
+            MultiplayerPlaylistItem effect = cardToEffectMap[card];
 
             await Hub.NotifyRankedPlayCardRevealed(Room, null, card, effect);
             await Hub.NotifyRankedPlayCardPlayed(Room, card);
@@ -268,22 +262,8 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.RankedPlay
 
             Room.Settings.PlaylistItemId = effect.ID;
             await Hub.NotifySettingsChanged(Room, true);
-        }
 
-        /// <summary>
-        /// Looks up the effect for a given card.
-        /// </summary>
-        public MultiplayerPlaylistItem LookupEffect(RankedPlayCardItem card)
-        {
-            return cardToEffectMap[card];
-        }
-
-        /// <summary>
-        /// Looks up the card for a given effect.
-        /// </summary>
-        public RankedPlayCardItem LookupCard(MultiplayerPlaylistItem effect)
-        {
-            return effectToCardMap[effect];
+            LastActivatedCard = card;
         }
 
         public MatchStartedEventDetail GetMatchDetails() => new MatchStartedEventDetail
