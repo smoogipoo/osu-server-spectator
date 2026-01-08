@@ -25,9 +25,18 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.RankedPlay.Stages
 
         protected override async Task Begin()
         {
-            // Check if the match has started.
+            foreach ((_, RankedPlayUserInfo user) in State.Users)
+                user.RatingAfter = user.Rating;
+
+            // Forego any rating calculations if the match hasn't started yet.
+            // Naturally, this also means we don't have a winner to crown.
             if (State.CurrentRound == 0)
                 return;
+
+            int maxLife = State.Users.Max(u => u.Value.Life);
+            var winners = State.Users.Where(u => u.Value.Life == maxLife).ToArray();
+            if (winners.Length == 1)
+                State.WinningUserId = winners[0].Key;
 
             using (var db = DbFactory.GetInstance())
             {
@@ -63,6 +72,8 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.RankedPlay.Stages
                     stats[i].EloData.ContestCount++;
                     stats[i].EloData.Rating = new EloRating(newRatings[i].Mu, newRatings[i].Sigma);
                     await db.UpdateMatchmakingUserStatsAsync(stats[i]);
+
+                    State.Users[(int)stats[i].user_id].RatingAfter = (int)Math.Round(newRatings[i].Mu);
                 }
             }
         }
