@@ -41,10 +41,9 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.RankedPlay.Stages
 
                 List<matchmaking_user_stats> stats = [];
                 List<ITeam> teams = [];
-                List<double> ranks = [];
-                int rankIndex = -1;
+                List<double> scores = [];
 
-                foreach ((int userId, _) in State.Users.OrderByDescending(u => u.Value.Life))
+                foreach ((int userId, RankedPlayUserInfo user) in State.Users)
                 {
                     matchmaking_user_stats userStats = await db.GetMatchmakingUserStatsAsync(userId, Controller.PoolId) ?? new matchmaking_user_stats
                     {
@@ -54,15 +53,15 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.RankedPlay.Stages
 
                     stats.Add(userStats);
                     teams.Add(new Team { Players = [model.Rating(userStats.EloData.Rating.Mu, userStats.EloData.Rating.Sig)] });
-                    ranks.Add(++rankIndex);
+                    scores.Add(user.Life);
                 }
 
-                ITeam[] newRatings = model.Rate(teams, ranks).ToArray();
+                IRating[] newRatings = model.Rate(teams, scores: scores).Select(t => t.Players.Single()).ToArray();
 
                 for (int i = 0; i < stats.Count; i++)
                 {
                     stats[i].EloData.ContestCount++;
-                    stats[i].EloData.Rating = new EloRating(newRatings[i].Players.Single().Mu, newRatings[i].Players.Single().Sigma);
+                    stats[i].EloData.Rating = new EloRating(newRatings[i].Mu, newRatings[i].Sigma);
                     await db.UpdateMatchmakingUserStatsAsync(stats[i]);
                 }
             }
