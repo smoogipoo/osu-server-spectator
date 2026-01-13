@@ -53,6 +53,9 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.RankedPlay
         /// </summary>
         protected async Task FinishWithCountdown(TimeSpan duration)
         {
+            if (duration < TimeSpan.Zero || duration == TimeSpan.MaxValue)
+                return;
+
             await Room.StartCountdown(new RankedPlayStageCountdown
             {
                 Stage = Stage,

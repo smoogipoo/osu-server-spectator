@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.SignalR;
 using Moq;
 using osu.Game.Online.Multiplayer;
 using osu.Game.Online.Multiplayer.MatchTypes.RankedPlay;
+using osu.Game.Online.RankedPlay;
 using osu.Game.Online.Rooms;
 using osu.Server.Spectator.Database.Models;
 using osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.Queue;
@@ -16,7 +17,7 @@ using osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.RankedPlay;
 using osu.Server.Spectator.Tests.Multiplayer;
 using Xunit;
 
-namespace osu.Server.Spectator.Tests.Matchmaking
+namespace osu.Server.Spectator.Tests.RankedPlay
 {
     public class RankedPlayMatchControllerTests : MultiplayerTest, IAsyncLifetime
     {
@@ -45,7 +46,14 @@ namespace osu.Server.Spectator.Tests.Matchmaking
         public async Task InitializeAsync()
         {
             using (var room = await Rooms.GetForUse(ROOM_ID, true))
-                room.Item = await MatchmakingQueueBackgroundService.InitialiseRoomAsync(ROOM_ID, HubContext, DatabaseFactory.Object, EventLogger, 0, [USER_ID, USER_ID_2], new MatchmakingBeatmapSelector([]));
+            {
+                room.Item = await MatchmakingQueueBackgroundService.InitialiseRoomAsync(ROOM_ID, HubContext, DatabaseFactory.Object, EventLogger, 0, [USER_ID, USER_ID_2],
+                    new MatchmakingBeatmapSelector(Enumerable.Range(1, 50).Select(i => new matchmaking_pool_beatmap
+                    {
+                        id = (uint)i,
+                        beatmap_id = i
+                    }).ToArray()));
+            }
         }
 
         [Fact]
@@ -76,7 +84,7 @@ namespace osu.Server.Spectator.Tests.Matchmaking
             UserReceiver.Invocations.Clear();
 
             await Hub.JoinRoom(ROOM_ID);
-            var userState = roomState.Users[0];
+            var userState = roomState.Users[USER_ID];
 
             Assert.Equal(5, userState.Hand.Count);
             UserReceiver.Verify(u => u.RankedPlayCardRevealed(It.IsAny<RankedPlayCardItem>(), It.IsAny<MultiplayerPlaylistItem>()), Times.Exactly(5));
@@ -89,7 +97,7 @@ namespace osu.Server.Spectator.Tests.Matchmaking
 
             SetUserContext(ContextUser2);
             await Hub.JoinRoom(ROOM_ID);
-            var userState2 = roomState.Users[1];
+            var userState2 = roomState.Users[USER_ID_2];
 
             Assert.Equal(5, userState2.Hand.Count);
             UserReceiver.Verify(u => u.RankedPlayCardRevealed(It.IsAny<RankedPlayCardItem>(), It.IsAny<MultiplayerPlaylistItem>()), Times.Never);
@@ -131,6 +139,7 @@ namespace osu.Server.Spectator.Tests.Matchmaking
 
             // Both players have finished discarding.
 
+            await room.SkipToEndOfCountdown(room.FindCountdownOfType<RankedPlayStageCountdown>());
             await verifyStage(RankedPlayStage.FinishCardDiscard);
             await gotoNextStage();
 
@@ -169,6 +178,7 @@ namespace osu.Server.Spectator.Tests.Matchmaking
 
             // Both players have downloaded the beatmap and readied up.
 
+            await room.SkipToEndOfCountdown(room.FindCountdownOfType<RankedPlayStageCountdown>());
             await verifyStage(RankedPlayStage.GameplayWarmup);
             await gotoNextStage();
 
@@ -201,12 +211,7 @@ namespace osu.Server.Spectator.Tests.Matchmaking
             Assert.Equal(700_000, userState2.Life);
             Receiver.Verify(u => u.RankedPlayCardRemoved(activePlayer.user.UserID, activeCard), Times.Once);
 
-            // Next round.
-
-            await gotoNextStage();
-            await verifyStage(RankedPlayStage.RoundWarmup);
-
-            // No discard stage in the second round.
+            // Next round goes immediately into card play.
 
             await gotoNextStage();
             await verifyStage(RankedPlayStage.CardPlay);
@@ -227,8 +232,8 @@ namespace osu.Server.Spectator.Tests.Matchmaking
 
             (Mock<HubCallerContext> context, RankedPlayUserInfo state) inactivePlayer = roomState.ActiveUserId switch
             {
-                USER_ID => (ContextUser2, roomState.Users[1]),
-                USER_ID_2 => (ContextUser, roomState.Users[0]),
+                USER_ID => (ContextUser2, roomState.Users[USER_ID]),
+                USER_ID_2 => (ContextUser, roomState.Users[USER_ID_2]),
                 _ => throw new ArgumentOutOfRangeException()
             };
 
