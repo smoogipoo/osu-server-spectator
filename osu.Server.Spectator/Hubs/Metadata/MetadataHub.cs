@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Primitives;
@@ -222,6 +223,7 @@ namespace osu.Server.Spectator.Hubs.Metadata
             await scoreProcessedSubscriber.UnregisterFromMultiplayerRoomAsync(Context.GetUserId(), id);
         }
 
+        [EnableRateLimiting(nameof(RefreshFriends))]
         public async Task RefreshFriends()
         {
             using (var usage = await GetOrCreateLocalUserState())
