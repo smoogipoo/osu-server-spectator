@@ -20,6 +20,5 @@ namespace osu.Server.Spectator.Tests.RankedPlay.Stages
             await FinishCountdown();
             Assert.Equal(RankedPlayStage.CardPlay, RoomState.Stage);
         }
-        
     }
 }
