@@ -1,8 +1,12 @@
 // Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
+using Moq;
 using osu.Game.Online.Multiplayer.MatchTypes.RankedPlay;
+using osu.Server.Spectator.Database.Models;
 using Xunit;
 
 namespace osu.Server.Spectator.Tests.RankedPlay.Stages
@@ -83,6 +87,56 @@ namespace osu.Server.Spectator.Tests.RankedPlay.Stages
                 // Go to the next round, for the next iteration.
                 await MatchController.GotoStage(RankedPlayStage.RoundWarmup);
             }
+        }
+
+        [Fact]
+        public async Task CardDrawnOnRoundLost()
+        {
+            int firstUser = RoomState.ActiveUserId!.Value;
+            int secondUser = RoomState.Users.Keys.Single(u => u != RoomState.ActiveUserId);
+
+            // First user loses the first round.
+
+            Database.Setup(db => db.GetAllScoresForPlaylistItem(It.IsAny<long>()))
+                    .Returns<long>(_ => Task.FromResult<IEnumerable<SoloScore>>(
+                    [
+                        new SoloScore { user_id = (uint)firstUser, total_score = 500_000 },
+                        new SoloScore { user_id = (uint)secondUser, total_score = 1_000_000 },
+                    ]));
+
+            await MatchController.GotoStage(RankedPlayStage.Results);
+            await MatchController.GotoStage(RankedPlayStage.RoundWarmup); // Round 2
+            Assert.Equal(6, RoomState.Users[firstUser].Hand.Count);
+            Assert.Equal(5, RoomState.Users[secondUser].Hand.Count);
+
+            // First user loses the second round.
+
+            await MatchController.GotoStage(RankedPlayStage.Results);
+            await MatchController.GotoStage(RankedPlayStage.RoundWarmup); // Round 3
+            // Note: We need to account for this being the second round for this user, where they also draw 1 card naturally.
+            Assert.Equal(8, RoomState.Users[firstUser].Hand.Count);
+            Assert.Equal(5, RoomState.Users[secondUser].Hand.Count);
+
+            // First user loses the third round
+
+            await MatchController.GotoStage(RankedPlayStage.Results);
+            await MatchController.GotoStage(RankedPlayStage.RoundWarmup); // Round 4
+            Assert.Equal(9, RoomState.Users[firstUser].Hand.Count);
+            Assert.Equal(6, RoomState.Users[secondUser].Hand.Count);
+
+            // Second user loses the fourth round
+
+            Database.Setup(db => db.GetAllScoresForPlaylistItem(It.IsAny<long>()))
+                    .Returns<long>(_ => Task.FromResult<IEnumerable<SoloScore>>(
+                    [
+                        new SoloScore { user_id = (uint)firstUser, total_score = 500_000 },
+                        new SoloScore { user_id = (uint)secondUser, total_score = 250_000 },
+                    ]));
+
+            await MatchController.GotoStage(RankedPlayStage.Results);
+            await MatchController.GotoStage(RankedPlayStage.RoundWarmup); // Round 5
+            Assert.Equal(10, RoomState.Users[firstUser].Hand.Count);
+            Assert.Equal(7, RoomState.Users[secondUser].Hand.Count);
         }
     }
 }

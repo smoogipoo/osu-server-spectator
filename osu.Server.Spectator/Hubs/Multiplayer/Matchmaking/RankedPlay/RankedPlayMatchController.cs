@@ -227,7 +227,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.RankedPlay
             Stage = stage switch
             {
                 RankedPlayStage.WaitForJoin => new WaitForJoinStage(this),
-                RankedPlayStage.RoundWarmup => new RoundWarmupStage(this),
+                RankedPlayStage.RoundWarmup => new RoundWarmupStage(this, Stage),
                 RankedPlayStage.CardDiscard => new CardDiscardStage(this),
                 RankedPlayStage.FinishCardDiscard => new FinishCardDiscardStage(this),
                 RankedPlayStage.CardPlay => new CardPlayStage(this),

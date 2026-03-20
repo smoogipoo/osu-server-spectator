@@ -11,9 +11,12 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.RankedPlay.Stages
 {
     public class RoundWarmupStage : RankedPlayStageImplementation
     {
-        public RoundWarmupStage(RankedPlayMatchController controller)
+        private readonly RankedPlayStageImplementation lastStage;
+
+        public RoundWarmupStage(RankedPlayMatchController controller, RankedPlayStageImplementation lastStage)
             : base(controller)
         {
+            this.lastStage = lastStage;
         }
 
         protected override RankedPlayStage Stage => RankedPlayStage.RoundWarmup;
@@ -31,14 +34,20 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.RankedPlay.Stages
             State.CurrentRound++;
             State.DamageMultiplier = computeDamageMultiplier(State.CurrentRound);
 
-            // Activate the next player.
-            // For the first round, this is set during room initialisation.
+            // Activate the next player in the match. For the first round, this is set during room initialisation.
             if (State.CurrentRound >= 2)
                 State.ActiveUserId = Controller.UserIdsByTurnOrder.Concat(Controller.UserIdsByTurnOrder).SkipWhile(u => u != State.ActiveUserId).Skip(1).First();
 
             // Draw a card on the player's next (non-first) turn.
             if (State.CurrentRound >= 3)
                 await Controller.AddCards(State.ActiveUserId!.Value, 1);
+
+            // Draw a card for all players that lost the last round.
+            if (lastStage is ResultsStage results && results.WinningUserId != null)
+            {
+                foreach (int userId in State.Users.Keys.Where(u => u != results.WinningUserId))
+                    await Controller.AddCards(userId, 1);
+            }
         }
 
         protected override async Task Finish()

@@ -13,6 +13,11 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.RankedPlay.Stages
 {
     public class ResultsStage : RankedPlayStageImplementation
     {
+        /// <summary>
+        /// The player with the highest score this round.
+        /// </summary>
+        public int? WinningUserId { get; private set; }
+
         public ResultsStage(RankedPlayMatchController controller)
             : base(controller)
         {
@@ -56,6 +61,10 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.RankedPlay.Stages
                     NewLife = newLife,
                 };
             }
+
+            SoloScore[] winningScores = scores.Where(u => u.total_score == maxTotalScore).ToArray();
+            if (winningScores.Length == 1)
+                WinningUserId = (int)winningScores[0].user_id;
         }
 
         protected override async Task Finish()
