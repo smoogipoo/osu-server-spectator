@@ -83,8 +83,13 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.RankedPlay.Stages
             }
 
             SoloScore[] winningScores = scores.Where(u => u.total_score == maxTotalScore).ToArray();
+
             if (winningScores.Length == 1)
-                State.Users[(int)winningScores.Single().user_id].RoundsWon += 1;
+            {
+                int winningUserId = (int)winningScores.Single().user_id;
+                State.Users[winningUserId].RoundsWon += 1;
+                State.Users[winningUserId].DamageMultiplier += 1;
+            }
         }
 
         protected override async Task Finish()
