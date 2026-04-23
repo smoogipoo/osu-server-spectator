@@ -37,7 +37,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.RankedPlay.Stages
             await Controller.AddCards(user.UserID, RankedPlayMatchController.PLAYER_HAND_SIZE);
 
             if (Room.Users.Count == State.Users.Count)
-                await Finish();
+                await FinishWithCountdown(TimeSpan.Zero);
         }
 
         public override async Task HandleUserLeft(MultiplayerRoomUser user)

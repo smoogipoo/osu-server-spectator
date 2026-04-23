@@ -61,7 +61,12 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.RankedPlay
 
             if (duration <= TimeSpan.Zero)
             {
-                await Finish();
+                await Room.StartCountdown(new RankedPlayStageCountdown
+                {
+                    Stage = Stage,
+                    TimeRemaining = TimeSpan.Zero
+                }, async _ => await Finish());
+
                 return;
             }
 
@@ -75,11 +80,17 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.RankedPlay
         /// <summary>
         /// Handles the initial actions when this stage is entered.
         /// </summary>
+        /// <remarks>
+        /// Calling this directly is almost always a mistake.
+        /// </remarks>
         protected abstract Task Begin();
 
         /// <summary>
         /// Handles any actions after the countdown timer runs out.
         /// </summary>
+        /// <remarks>
+        /// Calling this directly is almost always a mistake - prefer to call <see cref="FinishWithCountdown"/> with a duration of zero instead.
+        /// </remarks>
         protected abstract Task Finish();
 
         public virtual Task HandleUserJoined(MultiplayerRoomUser user)

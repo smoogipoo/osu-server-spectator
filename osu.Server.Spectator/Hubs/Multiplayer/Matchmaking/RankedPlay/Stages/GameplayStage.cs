@@ -38,7 +38,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.RankedPlay.Stages
 
         public override async Task HandleGameplayCompleted()
         {
-            await Finish();
+            await FinishWithCountdown(TimeSpan.Zero);
         }
 
         public override async Task HandleUserLeft(MultiplayerRoomUser user)

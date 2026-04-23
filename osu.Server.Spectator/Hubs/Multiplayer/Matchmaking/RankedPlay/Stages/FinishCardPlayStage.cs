@@ -51,7 +51,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.RankedPlay.Stages
         private async Task continueWhenAllPlayersReady()
         {
             if (allPlayersReady())
-                await Finish();
+                await FinishWithCountdown(TimeSpan.Zero);
         }
 
         /// <summary>
