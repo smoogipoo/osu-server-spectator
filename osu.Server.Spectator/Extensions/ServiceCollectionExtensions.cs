@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using osu.Server.Spectator.Database;
 using osu.Server.Spectator.Entities;
 using osu.Server.Spectator.Hubs;
+using osu.Server.Spectator.Hubs.Arcade;
 using osu.Server.Spectator.Hubs.Metadata;
 using osu.Server.Spectator.Hubs.Multiplayer;
 using osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.Queue;
@@ -38,6 +39,7 @@ namespace osu.Server.Spectator.Extensions
                                     .AddSingleton<BuildUserCountUpdater>()
                                     .AddSingleton<ChatFilters>()
                                     .AddSingleton<IDailyChallengeUpdater, DailyChallengeUpdater>()
+                                    .AddSingleton<ArcadeIdentityStore>()
                                     .AddHostedService<IDailyChallengeUpdater>(ctx => ctx.GetRequiredService<IDailyChallengeUpdater>())
                                     .AddSingleton<MultiplayerEventDispatcher>()
                                     .AddSingleton<IMatchmakingQueueBackgroundService, MatchmakingQueueBackgroundService>()

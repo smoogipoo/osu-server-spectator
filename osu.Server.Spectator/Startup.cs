@@ -15,6 +15,7 @@ using osu.Game.Online;
 using osu.Server.Spectator.Authentication;
 using osu.Server.Spectator.Extensions;
 using osu.Server.Spectator.Hubs;
+using osu.Server.Spectator.Hubs.Arcade;
 using osu.Server.Spectator.Hubs.Metadata;
 using osu.Server.Spectator.Hubs.Multiplayer;
 using osu.Server.Spectator.Hubs.Referee;
@@ -142,6 +143,7 @@ namespace osu.Server.Spectator
                 endpoints.MapHub<MultiplayerHub>("/multiplayer", o => o.AllowStatefulReconnects = true);
                 endpoints.MapHub<MetadataHub>("/metadata", o => o.AllowStatefulReconnects = true);
                 endpoints.MapHub<RefereeHub>("/referee", o => o.AllowStatefulReconnects = true);
+                endpoints.MapHub<ArcadeHub>("/arcade", o => o.AllowStatefulReconnects = true);
             });
 
             // Create shutdown manager singleton.

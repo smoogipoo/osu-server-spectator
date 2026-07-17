@@ -16,6 +16,7 @@ using osu.Game.Online.Rooms;
 using osu.Server.Spectator.Database;
 using osu.Server.Spectator.Database.Models;
 using osu.Server.Spectator.Entities;
+using osu.Server.Spectator.Hubs.Arcade;
 using osu.Server.Spectator.Hubs.Multiplayer;
 using osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.Queue;
 using osu.Server.Spectator.Hubs.Referee;
@@ -183,7 +184,8 @@ namespace osu.Server.Spectator.Tests.Multiplayer
                 Rooms,
                 RoomController,
                 new MemoryCache(new MemoryCacheOptions()),
-                EventDispatcher);
+                EventDispatcher,
+                new ArcadeIdentityStore());
 
             Hub = new TestMultiplayerHub(
                 LoggerFactory.Object,

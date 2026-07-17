@@ -12,6 +12,7 @@ using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
+using osu.Game.Arcade;
 using osu.Game.Online.API;
 using osu.Game.Online.Matchmaking;
 using osu.Game.Online.Matchmaking.Requests;
@@ -22,6 +23,7 @@ using osu.Server.Spectator.Database;
 using osu.Server.Spectator.Database.Models;
 using osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.Elo;
 using osu.Server.Spectator.Entities;
+using osu.Server.Spectator.Hubs.Arcade;
 using osu.Server.Spectator.Services;
 using StatsdClient;
 
@@ -57,6 +59,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.Queue
         private readonly ILogger logger;
         private readonly IMemoryCache memoryCache;
         private readonly MultiplayerEventDispatcher eventDispatcher;
+        private readonly ArcadeIdentityStore arcadeUsers;
 
         private DateTimeOffset lastLobbyUpdateTime = DateTimeOffset.UnixEpoch;
         private DateTimeOffset lastQueueRefreshTime = DateTimeOffset.UnixEpoch;
@@ -65,7 +68,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.Queue
 
         public MatchmakingQueueBackgroundService(IHubContext<MultiplayerHub> hub, ISharedInterop sharedInterop, IDatabaseFactory databaseFactory, ILoggerFactory loggerFactory,
                                                  EntityStore<ServerMultiplayerRoom> rooms, IMultiplayerRoomController roomController, IMemoryCache memoryCache,
-                                                 MultiplayerEventDispatcher eventDispatcher)
+                                                 MultiplayerEventDispatcher eventDispatcher, ArcadeIdentityStore arcadeUsers)
         {
             this.hub = hub;
             this.sharedInterop = sharedInterop;
@@ -74,6 +77,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.Queue
             this.roomController = roomController;
             this.memoryCache = memoryCache;
             this.eventDispatcher = eventDispatcher;
+            this.arcadeUsers = arcadeUsers;
 
             this.loggerFactory = loggerFactory;
             logger = loggerFactory.CreateLogger(nameof(MatchmakingQueueBackgroundService));
@@ -524,20 +528,30 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.Queue
 
                 if (stats == null)
                 {
-                    // Estimate initial elo from PP.
                     double pp = await db.GetUserPPAsync(state.UserId, pool.ruleset_id, pool.variant_id);
-                    double eloEstimate = -4000 + 600 * Math.Log(pp + 4000);
-
                     await db.UpdateMatchmakingUserStatsAsync(stats = new matchmaking_user_stats
                     {
                         user_id = (uint)state.UserId,
                         pool_id = pool.id,
                         EloData =
                         {
-                            InitialRating = new EloRating(eloEstimate),
-                            Rating = new EloRating(eloEstimate)
+                            InitialRating = new EloRating(ppToRating(pp)),
+                            Rating = new EloRating(ppToRating(pp))
                         }
                     });
+                }
+
+                if (arcadeUsers.TryGet(state.UserId, out ArcadeIdentity? identity))
+                {
+                    ArcadeUserMatchmakingStats? matchmakingStats = identity.MatchmakingStats.SingleOrDefault(it => it.RulesetId == pool.ruleset_id && it.VariantId == pool.variant_id);
+                    ArcadeUserGlobalStats? globalStats = identity.UserStats.SingleOrDefault(it => it.RulesetId == pool.ruleset_id && it.VariantId == pool.variant_id);
+
+                    if (matchmakingStats != null)
+                        stats.EloData.Rating = new EloRating(matchmakingStats.Rating);
+                    else if (globalStats != null)
+                        stats.EloData.Rating = new EloRating(ppToRating(globalStats.Pp));
+                    else
+                        stats.EloData.Rating = new EloRating(1000); // Roughly matches up to 0pp.
                 }
 
                 return new MatchmakingQueueUser(state.ConnectionId)
@@ -548,5 +562,8 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.Queue
                 };
             }
         }
+
+        private static double ppToRating(double pp)
+            => -4000 + 600 * Math.Log(pp + 4000);
     }
 }
