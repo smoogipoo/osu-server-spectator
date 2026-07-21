@@ -57,7 +57,8 @@ namespace osu.Server.Spectator
                     {
                         options.SupportedProtocols?.Remove("messagepack");
                         options.AddFilter<LoggingHubFilter>();
-                    });
+                    })
+                    .AddHubOptions<ArcadeHub>(configureClientHubOptions);
 
             services.AddHubEntities()
                     .AddDatabaseServices()

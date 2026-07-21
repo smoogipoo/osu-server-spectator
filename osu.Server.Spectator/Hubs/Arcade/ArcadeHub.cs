@@ -11,24 +11,22 @@ namespace osu.Server.Spectator.Hubs.Arcade
 {
     public class ArcadeHub : StatefulUserHub<IArcadeClient, ArcadeClientState>, IArcadeServer
     {
-        private readonly ArcadeIdentityStore arcadeUsers;
-
-        public ArcadeHub(ILoggerFactory loggerFactory, EntityStore<ArcadeClientState> userStates, ArcadeIdentityStore arcadeUsers)
+        public ArcadeHub(ILoggerFactory loggerFactory, EntityStore<ArcadeClientState> userStates)
             : base(loggerFactory, userStates)
         {
-            this.arcadeUsers = arcadeUsers;
         }
 
-        public Task Connect(ArcadeIdentity identity)
+        public async Task Connect(ArcadeIdentity identity)
         {
-            arcadeUsers.Add(Context.GetUserId(), identity);
-            return Task.CompletedTask;
+            using (var state = await GetOrCreateLocalUserState())
+                state.Item = new ArcadeClientState(Context.ConnectionId, Context.GetUserId(), identity);
+            await Clients.All.UserConnected(Context.GetUserId(), identity);
         }
 
-        public Task Disconnect()
+        public async Task Disconnect()
         {
-            arcadeUsers.Remove(Context.GetUserId());
-            return Task.CompletedTask;
+            await UserStates.Destroy(Context.GetUserId());
+            await Clients.All.UserDisconnected(Context.GetUserId());
         }
     }
 }

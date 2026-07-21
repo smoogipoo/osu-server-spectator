@@ -185,7 +185,7 @@ namespace osu.Server.Spectator.Tests.Multiplayer
                 RoomController,
                 new MemoryCache(new MemoryCacheOptions()),
                 EventDispatcher,
-                new ArcadeIdentityStore());
+                new EntityStore<ArcadeClientState>());
 
             Hub = new TestMultiplayerHub(
                 LoggerFactory.Object,

@@ -59,7 +59,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.Queue
         private readonly ILogger logger;
         private readonly IMemoryCache memoryCache;
         private readonly MultiplayerEventDispatcher eventDispatcher;
-        private readonly ArcadeIdentityStore arcadeUsers;
+        private readonly EntityStore<ArcadeClientState> arcadeClients;
 
         private DateTimeOffset lastLobbyUpdateTime = DateTimeOffset.UnixEpoch;
         private DateTimeOffset lastQueueRefreshTime = DateTimeOffset.UnixEpoch;
@@ -68,7 +68,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.Queue
 
         public MatchmakingQueueBackgroundService(IHubContext<MultiplayerHub> hub, ISharedInterop sharedInterop, IDatabaseFactory databaseFactory, ILoggerFactory loggerFactory,
                                                  EntityStore<ServerMultiplayerRoom> rooms, IMultiplayerRoomController roomController, IMemoryCache memoryCache,
-                                                 MultiplayerEventDispatcher eventDispatcher, ArcadeIdentityStore arcadeUsers)
+                                                 MultiplayerEventDispatcher eventDispatcher, EntityStore<ArcadeClientState> arcadeClients)
         {
             this.hub = hub;
             this.sharedInterop = sharedInterop;
@@ -77,7 +77,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.Queue
             this.roomController = roomController;
             this.memoryCache = memoryCache;
             this.eventDispatcher = eventDispatcher;
-            this.arcadeUsers = arcadeUsers;
+            this.arcadeClients = arcadeClients;
 
             this.loggerFactory = loggerFactory;
             logger = loggerFactory.CreateLogger(nameof(MatchmakingQueueBackgroundService));
@@ -541,17 +541,21 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.Queue
                     });
                 }
 
-                if (arcadeUsers.TryGet(state.UserId, out ArcadeIdentity? identity))
+                using (var arcadeClient = await arcadeClients.TryGetForUse(state.UserId))
                 {
-                    ArcadeUserMatchmakingStats? matchmakingStats = identity.MatchmakingStats.SingleOrDefault(it => it.RulesetId == pool.ruleset_id && it.VariantId == pool.variant_id);
-                    ArcadeUserGlobalStats? globalStats = identity.UserStats.SingleOrDefault(it => it.RulesetId == pool.ruleset_id && it.VariantId == pool.variant_id);
+                    if (arcadeClient?.Item != null)
+                    {
+                        ArcadeUserMatchmakingStats? matchmakingStats =
+                            arcadeClient.Item.Identity.MatchmakingStats.SingleOrDefault(it => it.RulesetId == pool.ruleset_id && it.VariantId == pool.variant_id);
+                        ArcadeUserGlobalStats? globalStats = arcadeClient.Item.Identity.UserStats.SingleOrDefault(it => it.RulesetId == pool.ruleset_id && it.VariantId == pool.variant_id);
 
-                    if (matchmakingStats != null)
-                        stats.EloData.Rating = new EloRating(matchmakingStats.Rating);
-                    else if (globalStats != null)
-                        stats.EloData.Rating = new EloRating(ppToRating(globalStats.Pp));
-                    else
-                        stats.EloData.Rating = new EloRating(1000); // Roughly matches up to 0pp.
+                        if (matchmakingStats != null)
+                            stats.EloData.Rating = new EloRating(matchmakingStats.Rating);
+                        else if (globalStats != null)
+                            stats.EloData.Rating = new EloRating(ppToRating(globalStats.Pp));
+                        else
+                            stats.EloData.Rating = new EloRating(1000); // Roughly matches up to 0pp.
+                    }
                 }
 
                 return new MatchmakingQueueUser(state.ConnectionId)
