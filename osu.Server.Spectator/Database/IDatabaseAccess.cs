@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.IdentityModel.JsonWebTokens;
+using osu.Game.Arcade;
 using osu.Game.Online.Multiplayer;
 using osu.Game.Scoring;
 using osu.Server.Spectator.Database.Models;
@@ -292,5 +293,7 @@ namespace osu.Server.Spectator.Database
         Task<int[]> GetMatchmakingPoolRatingsAsync(uint poolId);
 
         Task<int[]> GetMatchmakingPoolTop100RatingsAsync(uint poolId);
+
+        Task<ArcadeUserStats[]> GetArcadeUserStatsAsync();
     }
 }

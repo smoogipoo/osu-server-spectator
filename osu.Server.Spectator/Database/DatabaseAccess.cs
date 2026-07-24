@@ -10,6 +10,7 @@ using Dapper;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.JsonWebTokens;
 using MySqlConnector;
+using osu.Game.Arcade;
 using osu.Game.Online.Multiplayer;
 using osu.Game.Scoring;
 using osu.Server.Spectator.Database.Models;
@@ -843,6 +844,28 @@ namespace osu.Server.Spectator.Database
             {
                 PoolId = poolId
             })).ToArray();
+        }
+
+        public async Task<ArcadeUserStats[]> GetArcadeUserStatsAsync()
+        {
+            var connection = await getConnectionAsync();
+
+            Dictionary<int, string> usernameByUserId = [];
+            Dictionary<int, int> resultByUserId = [];
+
+            foreach ((int userId, string username) in await connection.QueryAsync<(int, string)>("SELECT * FROM matchmaking_room_events WHERE event_type = 'arcade_victory'"))
+            {
+                usernameByUserId[userId] = username;
+                resultByUserId[userId] = resultByUserId.GetValueOrDefault(userId) + 1;
+            }
+
+            return resultByUserId.Select(kvp => new ArcadeUserStats
+                                 {
+                                     UserId = kvp.Key,
+                                     Username = usernameByUserId[kvp.Key],
+                                     Victories = kvp.Value
+                                 })
+                                 .ToArray();
         }
 
         public void Dispose()

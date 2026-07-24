@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
+using osu.Game.Arcade;
 using osu.Game.Online.API;
 using osu.Game.Online.Matchmaking;
 using osu.Game.Online.Multiplayer;
@@ -693,6 +694,10 @@ namespace osu.Server.Spectator.Hubs.Multiplayer
             });
         }
 
+        #endregion
+
+        #region Ranked Play
+
         /// <summary>
         /// Communicates that a ranked play card was added for the given user.
         /// </summary>
@@ -731,6 +736,20 @@ namespace osu.Server.Spectator.Hubs.Multiplayer
         public async Task PostRankedPlayCardPlayed(long roomId, RankedPlayCardItem card)
         {
             await multiplayerHubContext.Clients.Group(GetGroupId(roomId)).SendAsync(nameof(IRankedPlayClient.RankedPlayCardPlayed), card);
+        }
+
+        #endregion
+
+        #region Arcade
+
+        public async Task PostArcadeVictoryAsync(ArcadeIdentity identity)
+        {
+            await logToDatabase(new matchmaking_room_event
+            {
+                event_type = "arcade_victory",
+                user_id = identity.User.UserId,
+                event_detail = identity.User.Username
+            });
         }
 
         #endregion

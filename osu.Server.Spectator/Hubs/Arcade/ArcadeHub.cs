@@ -4,6 +4,7 @@
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using osu.Game.Arcade;
+using osu.Server.Spectator.Database;
 using osu.Server.Spectator.Entities;
 using osu.Server.Spectator.Extensions;
 
@@ -11,9 +12,18 @@ namespace osu.Server.Spectator.Hubs.Arcade
 {
     public class ArcadeHub : StatefulUserHub<IArcadeClient, ArcadeClientState>, IArcadeServer
     {
-        public ArcadeHub(ILoggerFactory loggerFactory, EntityStore<ArcadeClientState> userStates)
+        private readonly IDatabaseFactory dbFactory;
+
+        public ArcadeHub(ILoggerFactory loggerFactory, EntityStore<ArcadeClientState> userStates, IDatabaseFactory dbFactory)
             : base(loggerFactory, userStates)
         {
+            this.dbFactory = dbFactory;
+        }
+
+        public async Task<ArcadeUserStats[]> FetchLeaderboard()
+        {
+            using (var db = dbFactory.GetInstance())
+                return await db.GetArcadeUserStatsAsync();
         }
 
         public async Task Connect(ArcadeIdentity identity)

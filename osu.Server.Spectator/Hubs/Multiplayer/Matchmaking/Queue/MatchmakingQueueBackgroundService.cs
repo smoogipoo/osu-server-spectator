@@ -83,15 +83,15 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.Queue
             logger = loggerFactory.CreateLogger(nameof(MatchmakingQueueBackgroundService));
         }
 
-        public Task RecordMatch(int poolId, MatchRoomState status)
+        public async Task RecordMatch(int poolId, MatchRoomState status)
         {
             if (!poolLobbies.TryGetValue(poolId, out MatchmakingLobby? lobby))
-                return Task.CompletedTask;
+                return;
 
             if (!poolQueues.TryGetValue(poolId, out MatchmakingQueue? queue))
-                return Task.CompletedTask;
+                return;
 
-            lobby.RecordMatch(status);
+            await lobby.RecordMatch(status);
 
             if (status is RankedPlayRoomState rpState)
             {
@@ -102,9 +102,10 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.Queue
                     for (int j = i + 1; j < users.Length; j++)
                         queue.MarkRecentMatchup(users[i], users[j]);
                 }
-            }
 
-            return Task.CompletedTask;
+                if (rpState.WinningUserId != null && await tryGetArcadeIdentity(rpState.WinningUserId.Value) is ArcadeIdentity identity)
+                    await eventDispatcher.PostArcadeVictoryAsync(identity);
+            }
         }
 
         public async Task RecordBeatmapResult(uint poolId, int beatmapId, APIMod[] mods, int[] scores, EloRating[] ratings)
@@ -541,21 +542,17 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.Queue
                     });
                 }
 
-                using (var arcadeClient = await arcadeClients.TryGetForUse(state.UserId))
+                if (await tryGetArcadeIdentity(state.UserId) is ArcadeIdentity identity)
                 {
-                    if (arcadeClient?.Item != null)
-                    {
-                        ArcadeUserMatchmakingStats? matchmakingStats =
-                            arcadeClient.Item.Identity.MatchmakingStats.SingleOrDefault(it => it.RulesetId == pool.ruleset_id && it.VariantId == pool.variant_id);
-                        ArcadeUserGlobalStats? globalStats = arcadeClient.Item.Identity.UserStats.SingleOrDefault(it => it.RulesetId == pool.ruleset_id && it.VariantId == pool.variant_id);
+                    ArcadeUserMatchmakingStats? matchmakingStats = identity.MatchmakingStats.SingleOrDefault(it => it.RulesetId == pool.ruleset_id && it.VariantId == pool.variant_id);
+                    ArcadeUserGlobalStats? globalStats = identity.UserStats.SingleOrDefault(it => it.RulesetId == pool.ruleset_id && it.VariantId == pool.variant_id);
 
-                        if (matchmakingStats != null)
-                            stats.EloData.Rating = new EloRating(matchmakingStats.Rating);
-                        else if (globalStats != null)
-                            stats.EloData.Rating = new EloRating(ppToRating(globalStats.Pp));
-                        else
-                            stats.EloData.Rating = new EloRating(1000); // Roughly matches up to 0pp.
-                    }
+                    if (matchmakingStats != null)
+                        stats.EloData.Rating = new EloRating(matchmakingStats.Rating);
+                    else if (globalStats != null)
+                        stats.EloData.Rating = new EloRating(ppToRating(globalStats.Pp));
+                    else
+                        stats.EloData.Rating = new EloRating(1000); // Roughly matches up to 0pp.
                 }
 
                 return new MatchmakingQueueUser(state.ConnectionId)
@@ -565,6 +562,12 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.Queue
                     BanEndTime = memoryCache.Get<DateTimeOffset?>(queue_ban_expiry(state.UserId)) ?? DateTimeOffset.MinValue
                 };
             }
+        }
+
+        private async Task<ArcadeIdentity?> tryGetArcadeIdentity(int userId)
+        {
+            using (var arcadeClient = await arcadeClients.TryGetForUse(userId))
+                return arcadeClient?.Item?.Identity;
         }
 
         private static double ppToRating(double pp)
