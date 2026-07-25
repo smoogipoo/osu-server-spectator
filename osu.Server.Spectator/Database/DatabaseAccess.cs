@@ -853,10 +853,11 @@ namespace osu.Server.Spectator.Database
             Dictionary<int, string> usernameByUserId = [];
             Dictionary<int, int> resultByUserId = [];
 
-            foreach ((int userId, string username) in await connection.QueryAsync<(int, string)>("SELECT * FROM matchmaking_room_events WHERE event_type = 'arcade_victory'"))
+            foreach (ArcadeVictoryEventDetail e in await connection.QueryAsync<ArcadeVictoryEventDetail>(
+                         "SELECT event_detail->>'$.user_id' as user_id, event_detail->>'$.username' as username FROM matchmaking_room_events WHERE event_type = 'arcade_victory'"))
             {
-                usernameByUserId[userId] = username;
-                resultByUserId[userId] = resultByUserId.GetValueOrDefault(userId) + 1;
+                usernameByUserId[e.user_id] = e.username;
+                resultByUserId[e.user_id] = resultByUserId.GetValueOrDefault(e.user_id) + 1;
             }
 
             return resultByUserId.Select(kvp => new ArcadeUserStats

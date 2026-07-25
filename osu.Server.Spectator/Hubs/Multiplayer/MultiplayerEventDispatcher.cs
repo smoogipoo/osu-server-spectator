@@ -747,8 +747,11 @@ namespace osu.Server.Spectator.Hubs.Multiplayer
             await logToDatabase(new matchmaking_room_event
             {
                 event_type = "arcade_victory",
-                user_id = identity.User.UserId,
-                event_detail = identity.User.Username
+                event_detail = JsonConvert.SerializeObject(new ArcadeVictoryEventDetail
+                {
+                    user_id = identity.User.UserId,
+                    username = identity.User.Username
+                })
             });
         }
 

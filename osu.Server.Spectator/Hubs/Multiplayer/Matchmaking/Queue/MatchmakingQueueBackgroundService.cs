@@ -85,22 +85,20 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.Queue
 
         public async Task RecordMatch(int poolId, MatchRoomState status)
         {
-            if (!poolLobbies.TryGetValue(poolId, out MatchmakingLobby? lobby))
-                return;
-
-            if (!poolQueues.TryGetValue(poolId, out MatchmakingQueue? queue))
-                return;
-
-            await lobby.RecordMatch(status);
+            if (poolLobbies.TryGetValue(poolId, out MatchmakingLobby? lobby))
+                await lobby.RecordMatch(status);
 
             if (status is RankedPlayRoomState rpState)
             {
-                int[] users = rpState.Users.Keys.ToArray();
-
-                for (int i = 0; i < users.Length; i++)
+                if (poolQueues.TryGetValue(poolId, out MatchmakingQueue? queue))
                 {
-                    for (int j = i + 1; j < users.Length; j++)
-                        queue.MarkRecentMatchup(users[i], users[j]);
+                    int[] users = rpState.Users.Keys.ToArray();
+
+                    for (int i = 0; i < users.Length; i++)
+                    {
+                        for (int j = i + 1; j < users.Length; j++)
+                            queue.MarkRecentMatchup(users[i], users[j]);
+                    }
                 }
 
                 if (rpState.WinningUserId != null && await tryGetArcadeIdentity(rpState.WinningUserId.Value) is ArcadeIdentity identity)
