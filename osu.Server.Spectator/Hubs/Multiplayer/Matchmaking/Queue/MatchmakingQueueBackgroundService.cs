@@ -101,8 +101,11 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.Queue
                     }
                 }
 
-                if (rpState.WinningUserId != null && await tryGetArcadeIdentity(rpState.WinningUserId.Value) is ArcadeIdentity identity)
-                    await eventDispatcher.PostArcadeVictoryAsync(identity);
+                if (!AppSettings.ArcadeNoWrite)
+                {
+                    if (rpState.WinningUserId != null && await tryGetArcadeIdentity(rpState.WinningUserId.Value) is ArcadeIdentity identity)
+                        await eventDispatcher.PostArcadeVictoryAsync(identity);
+                }
             }
         }
 

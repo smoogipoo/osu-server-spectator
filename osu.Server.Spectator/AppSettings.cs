@@ -74,6 +74,8 @@ namespace osu.Server.Spectator
         /// </summary>
         public static bool MatchmakingUseDynamicBeatmapRatings { get; } = true;
 
+        public static bool ArcadeNoWrite { get; }
+
         static AppSettings()
         {
             SaveReplays = bool.TryParse(Environment.GetEnvironmentVariable("SAVE_REPLAYS"), out bool saveReplays) ? saveReplays : SaveReplays;
@@ -151,6 +153,10 @@ namespace osu.Server.Spectator
             MatchmakingUseDynamicBeatmapRatings = bool.TryParse(Environment.GetEnvironmentVariable("MATCHMAKING_USE_DYNAMIC_BEATMAP_RATINGS"), out bool mmUseDynamicBeatmapRatings)
                 ? mmUseDynamicBeatmapRatings
                 : MatchmakingUseDynamicBeatmapRatings;
+
+            ArcadeNoWrite = bool.TryParse(Environment.GetEnvironmentVariable("ARCADE_NO_WRITE"), out bool arcadeNoWrite)
+                ? arcadeNoWrite
+                : ArcadeNoWrite;
         }
     }
 }
