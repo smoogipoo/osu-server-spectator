@@ -26,6 +26,14 @@ namespace osu.Server.Spectator.Hubs.Arcade
             this.roomStore = roomStore;
         }
 
+        public override async Task OnConnectedAsync()
+        {
+            await base.OnConnectedAsync();
+
+            foreach (var state in UserStates.GetAllEntities())
+                await Clients.Caller.UserConnected(state.Value.UserId, state.Value.Identity);
+        }
+
         public async Task<ArcadeUserStats[]> FetchLeaderboard()
         {
             using (var db = dbFactory.GetInstance())
