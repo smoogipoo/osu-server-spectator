@@ -103,8 +103,14 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.Queue
 
                 if (!AppSettings.ArcadeNoWrite)
                 {
-                    if (rpState.WinningUserId != null && await tryGetArcadeIdentity(rpState.WinningUserId.Value) is ArcadeIdentity identity)
-                        await eventDispatcher.PostArcadeVictoryAsync(identity);
+                    if (rpState.WinningUserId != null && await tryGetArcadeIdentity(rpState.WinningUserId.Value) is ArcadeIdentity winnerIdentity)
+                    {
+                        await eventDispatcher.PostArcadeVictoryAsync(winnerIdentity);
+
+                        int losingUserId = rpState.Users.Keys.FirstOrDefault(u => u != rpState.WinningUserId);
+                        if (await tryGetArcadeIdentity(losingUserId) is ArcadeIdentity loserIdentity)
+                            await eventDispatcher.PostArcadeLossAsync(loserIdentity);
+                    }
                 }
             }
         }
