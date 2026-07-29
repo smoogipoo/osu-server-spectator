@@ -76,6 +76,8 @@ namespace osu.Server.Spectator
 
         public static bool ArcadeNoWrite { get; }
 
+        public static string ArcadeStoreUrl { get; } = string.Empty;
+
         static AppSettings()
         {
             SaveReplays = bool.TryParse(Environment.GetEnvironmentVariable("SAVE_REPLAYS"), out bool saveReplays) ? saveReplays : SaveReplays;
@@ -157,6 +159,8 @@ namespace osu.Server.Spectator
             ArcadeNoWrite = bool.TryParse(Environment.GetEnvironmentVariable("ARCADE_NO_WRITE"), out bool arcadeNoWrite)
                 ? arcadeNoWrite
                 : ArcadeNoWrite;
+
+            ArcadeStoreUrl = Environment.GetEnvironmentVariable("ARCADE_STORE_URL") ?? ArcadeStoreUrl;
         }
     }
 }

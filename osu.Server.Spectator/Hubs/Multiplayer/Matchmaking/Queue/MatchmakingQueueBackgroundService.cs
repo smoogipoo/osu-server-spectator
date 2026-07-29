@@ -60,6 +60,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.Queue
         private readonly IMemoryCache memoryCache;
         private readonly MultiplayerEventDispatcher eventDispatcher;
         private readonly EntityStore<ArcadeClientState> arcadeClients;
+        private readonly IDiscord discord;
 
         private DateTimeOffset lastLobbyUpdateTime = DateTimeOffset.UnixEpoch;
         private DateTimeOffset lastQueueRefreshTime = DateTimeOffset.UnixEpoch;
@@ -68,7 +69,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.Queue
 
         public MatchmakingQueueBackgroundService(IHubContext<MultiplayerHub> hub, ISharedInterop sharedInterop, IDatabaseFactory databaseFactory, ILoggerFactory loggerFactory,
                                                  EntityStore<ServerMultiplayerRoom> rooms, IMultiplayerRoomController roomController, IMemoryCache memoryCache,
-                                                 MultiplayerEventDispatcher eventDispatcher, EntityStore<ArcadeClientState> arcadeClients)
+                                                 MultiplayerEventDispatcher eventDispatcher, EntityStore<ArcadeClientState> arcadeClients, IDiscord discord)
         {
             this.hub = hub;
             this.sharedInterop = sharedInterop;
@@ -78,8 +79,9 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.Queue
             this.memoryCache = memoryCache;
             this.eventDispatcher = eventDispatcher;
             this.arcadeClients = arcadeClients;
-
+            this.discord = discord;
             this.loggerFactory = loggerFactory;
+
             logger = loggerFactory.CreateLogger(nameof(MatchmakingQueueBackgroundService));
         }
 
@@ -103,13 +105,14 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.Queue
 
                 if (!AppSettings.ArcadeNoWrite)
                 {
-                    if (rpState.WinningUserId != null && await tryGetArcadeIdentity(rpState.WinningUserId.Value) is ArcadeIdentity winnerIdentity)
+                    ArcadeIdentity? winnerIdentity = rpState.WinningUserId == null ? null : await tryGetArcadeIdentity(rpState.WinningUserId.Value);
+                    ArcadeIdentity? loserIdentity = rpState.WinningUserId == null ? null : await tryGetArcadeIdentity(rpState.Users.Keys.FirstOrDefault(u => u != rpState.WinningUserId));
+
+                    if (winnerIdentity != null && loserIdentity != null)
                     {
                         await eventDispatcher.PostArcadeVictoryAsync(winnerIdentity);
-
-                        int losingUserId = rpState.Users.Keys.FirstOrDefault(u => u != rpState.WinningUserId);
-                        if (await tryGetArcadeIdentity(losingUserId) is ArcadeIdentity loserIdentity)
-                            await eventDispatcher.PostArcadeLossAsync(loserIdentity);
+                        await eventDispatcher.PostArcadeLossAsync(loserIdentity);
+                        await discord.SendMessageAsync(DiscordServer.ArcadeStore, $"Match completed: `{winnerIdentity.User.Username}` - `{loserIdentity.User.Username}`");
                     }
                 }
             }

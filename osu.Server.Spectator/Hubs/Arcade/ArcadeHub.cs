@@ -35,6 +35,11 @@ namespace osu.Server.Spectator.Hubs.Arcade
 
         public async Task Disconnect()
         {
+            // This is here because this hub is independent of multiplayer hub, and entities need to exist
+            // for just a short while longer after players leave rooms.
+            // This delay is imperceptible to players at the arcade.
+            await Task.Delay(1000);
+
             await UserStates.Destroy(Context.GetUserId());
             await Clients.All.UserDisconnected(Context.GetUserId());
         }

@@ -39,6 +39,7 @@ namespace osu.Server.Spectator.Extensions
                                     .AddSingleton<IScoreProcessedSubscriber, ScoreProcessedSubscriber>()
                                     .AddSingleton<BuildUserCountUpdater>()
                                     .AddSingleton<ChatFilters>()
+                                    .AddSingleton<IDiscord, Discord>()
                                     .AddSingleton<IDailyChallengeUpdater, DailyChallengeUpdater>()
                                     .AddHostedService<IDailyChallengeUpdater>(ctx => ctx.GetRequiredService<IDailyChallengeUpdater>())
                                     .AddSingleton<MultiplayerEventDispatcher>()

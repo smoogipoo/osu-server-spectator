@@ -185,7 +185,8 @@ namespace osu.Server.Spectator.Tests.Multiplayer
                 RoomController,
                 new MemoryCache(new MemoryCacheOptions()),
                 EventDispatcher,
-                new EntityStore<ArcadeClientState>());
+                new EntityStore<ArcadeClientState>(),
+                new Mock<IDiscord>().Object);
 
             Hub = new TestMultiplayerHub(
                 LoggerFactory.Object,
