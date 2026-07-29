@@ -755,6 +755,19 @@ namespace osu.Server.Spectator.Hubs.Multiplayer
             });
         }
 
+        public async Task PostArcadeLossAsync(ArcadeIdentity identity)
+        {
+            await logToDatabase(new matchmaking_room_event
+            {
+                event_type = "arcade_loss",
+                event_detail = JsonConvert.SerializeObject(new ArcadeVictoryEventDetail
+                {
+                    user_id = identity.User.UserId,
+                    username = identity.User.Username
+                })
+            });
+        }
+
         #endregion
 
         #region Database logging helpers
