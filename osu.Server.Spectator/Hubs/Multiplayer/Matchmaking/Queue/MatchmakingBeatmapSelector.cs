@@ -95,7 +95,10 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.Queue
             // Always use the most-recent databased rating values.
             matchmaking_pool_beatmap? beatmap;
             using (var db = dbFactory.GetInstance())
-                beatmap = await db.GetMatchmakingPoolBeatmapAsync(pool.id, key.BeatmapId, key.Mods) ?? GlobalBeatmaps[key.BeatmapId];
+                beatmap = await db.GetMatchmakingPoolBeatmapAsync(pool.id, key.BeatmapId, key.Mods) ?? GlobalBeatmaps.GetValueOrDefault(key.BeatmapId);
+
+            if (beatmap == null)
+                return;
 
             PlackettLuce model = new PlackettLuce
             {
