@@ -23,6 +23,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.RankedPlay.Stages
 
         private RankedPlayCardItem? playedCard;
         private RankedPlayCardItem? lastSelectedCard;
+        private bool postedMysteryCard;
 
         protected override async Task Begin()
         {
@@ -41,8 +42,12 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.RankedPlay.Stages
             RankedPlayCardItem card = playedCard ?? lastSelectedCard ?? State.ActiveUser.Hand.First();
             await Controller.ActivateCard(card);
 
-            if (card.Mystery)
-                await Task.Delay(TimeSpan.FromSeconds(15));
+            if (card.Mystery && !postedMysteryCard)
+            {
+                postedMysteryCard = true;
+                await FinishWithCountdown(TimeSpan.FromSeconds(15));
+                return;
+            }
 
             await Controller.GotoStage(RankedPlayStage.FinishCardPlay);
         }
