@@ -41,7 +41,12 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.RankedPlay.Stages
 
             // Draw a card on the player's next (non-first) turn.
             if (State.CurrentRound >= 3)
-                await Controller.AddCards(State.ActiveUserId!.Value, 1);
+            {
+                if (State.ActiveUserId == Controller.MysteryActivationUserId)
+                    await Controller.AddMysteryOrNormalCard(State.ActiveUserId!.Value);
+                else
+                    await Controller.AddCards(State.ActiveUserId!.Value, 1);
+            }
         }
 
         protected override async Task Finish()

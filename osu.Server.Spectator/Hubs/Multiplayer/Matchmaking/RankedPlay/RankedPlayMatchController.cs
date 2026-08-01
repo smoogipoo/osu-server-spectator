@@ -69,6 +69,10 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.RankedPlay
         /// </summary>
         private readonly List<RankedPlayCardItem> deck = [];
 
+        public int MysteryActivationUserId { get; private set; }
+
+        private RankedPlayCardItem? mysteryCard;
+
         /// <summary>
         /// Indicates whether the final user ratings have been updated.
         /// Todo: This is public for testing purposes, but should not be.
@@ -142,6 +146,34 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.RankedPlay
 
             // Populate the initial active user, for use by the client to display the first turn's user.
             State.ActiveUserId = UserIdsByTurnOrder[0];
+
+            MysteryActivationUserId = UserIdsByTurnOrder[Random.Shared.Next(0, UserIdsByTurnOrder.Length)];
+
+            using (var db = DbFactory.GetInstance())
+            {
+                if (pool.ruleset_id == 0)
+                {
+                    List<matchmaking_pool_beatmap> mysteryBeatmaps =
+                        (await db.GetBeatmapsAsync([4826295, 4827174, 4852536, 4827175, 4826296, 4834157, 4818953, 4826294, 4817853]))
+                        .Select(b => new matchmaking_pool_beatmap
+                        {
+                            pool_id = Pool.id,
+                            beatmap_id = b.beatmap_id,
+                            playmode = b.playmode,
+                            checksum = b.checksum,
+                            difficultyrating = b.difficultyrating,
+                            rating = (int)Math.Round(800 + 500 * (Math.Exp(0.16 * b.difficultyrating) - 1)),
+                        }).ToList();
+
+                    var mysteryBeatmap = mysteryBeatmaps.OrderBy(b => Math.Abs(b.rating)).FirstOrDefault();
+
+                    if (mysteryBeatmap != null)
+                    {
+                        mysteryCard = new RankedPlayCardItem { Mystery = true };
+                        cardToEffectMap[mysteryCard] = mysteryBeatmap.ToPlaylistItem();
+                    }
+                }
+            }
 
             await EventDispatcher.PostMatchRoomStateChangedAsync(Room);
         }
@@ -254,6 +286,23 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.RankedPlay
             };
 
             await Stage.Enter();
+        }
+
+        public async Task AddMysteryOrNormalCard(int userId)
+        {
+            if (mysteryCard == null)
+            {
+                await AddCards(userId, 1);
+                return;
+            }
+
+            State.Users[userId].Hand.Add(mysteryCard);
+            await EventDispatcher.PostRankedPlayCardAdded(Room.RoomID, userId, mysteryCard);
+            await EventDispatcher.PostRankedPlayCardRevealed(userId, mysteryCard, cardToEffectMap[mysteryCard]);
+
+            await EventDispatcher.PostMatchRoomStateChangedAsync(Room);
+
+            mysteryCard = null;
         }
 
         /// <summary>
