@@ -54,7 +54,11 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.RankedPlay.Stages
                 return;
 
             playedCard = card;
-            await Finish();
+
+            if (card.Mystery)
+                await FinishWithCountdown(TimeSpan.FromSeconds(15));
+            else
+                await Finish();
         }
 
         public override Task HandleCardHandReplayRequest(MultiplayerRoomUser user, RankedPlayCardHandReplayRequest request)
