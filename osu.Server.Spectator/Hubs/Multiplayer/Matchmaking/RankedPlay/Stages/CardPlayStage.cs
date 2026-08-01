@@ -38,7 +38,12 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.RankedPlay.Stages
             Debug.Assert(State.ActiveUserId != null);
             Debug.Assert(State.ActiveUser != null);
 
-            await Controller.ActivateCard(playedCard ?? lastSelectedCard ?? State.ActiveUser.Hand.First());
+            RankedPlayCardItem card = playedCard ?? lastSelectedCard ?? State.ActiveUser.Hand.First();
+            await Controller.ActivateCard(card);
+
+            if (card.Mystery)
+                await Task.Delay(TimeSpan.FromSeconds(15));
+
             await Controller.GotoStage(RankedPlayStage.FinishCardPlay);
         }
 
@@ -55,10 +60,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.RankedPlay.Stages
 
             playedCard = card;
 
-            if (card.Mystery)
-                await FinishWithCountdown(TimeSpan.FromSeconds(15));
-            else
-                await Finish();
+            await Finish();
         }
 
         public override Task HandleCardHandReplayRequest(MultiplayerRoomUser user, RankedPlayCardHandReplayRequest request)
