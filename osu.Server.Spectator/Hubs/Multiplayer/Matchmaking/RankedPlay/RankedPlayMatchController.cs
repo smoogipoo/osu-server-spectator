@@ -154,7 +154,7 @@ namespace osu.Server.Spectator.Hubs.Multiplayer.Matchmaking.RankedPlay
                 if (pool.ruleset_id == 0)
                 {
                     List<matchmaking_pool_beatmap> mysteryBeatmaps =
-                        (await db.GetBeatmapsAsync(AppSettings.MatchmakingDebugBeatmaps ? [259] : [4826295, 4827174, 4852536, 4827175, 4826296, 4834157, 4818953, 4826294, 4817853]))
+                        (await db.GetBeatmapsAsync(AppSettings.MatchmakingDebugBeatmaps ? [259] : [4826294]))
                         .Select(b => new matchmaking_pool_beatmap
                         {
                             pool_id = Pool.id,
