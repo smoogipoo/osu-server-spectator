@@ -29,6 +29,9 @@ namespace osu.Server.Spectator.Services
                 _ => throw new ArgumentOutOfRangeException(nameof(target))
             };
 
+            if (string.IsNullOrEmpty(webhookUrl))
+                return;
+
             var response = await httpClient.PostAsync(webhookUrl, httpContent);
             response.EnsureSuccessStatusCode();
         }
